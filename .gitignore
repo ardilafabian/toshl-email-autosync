@@ -159,3 +159,6 @@ Temporary Items
 
 credentials.json
 token.json
+rapidapi-keys.json
+
+bin/*

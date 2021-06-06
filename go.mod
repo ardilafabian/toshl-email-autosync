@@ -2,6 +2,7 @@ require (
 	cloud.google.com/go v0.83.0 // indirect
 	github.com/Philanthropists/toshl-email-autosync/mail v0.0.0-20210606051336-f77707c2b291
 	github.com/Philanthropists/toshl-email-autosync/mail/gmail v0.0.0-20210606051336-f77707c2b291
+	github.com/Philanthropists/toshl-email-autosync/market/rapidapi v0.0.0-00010101000000-000000000000
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	golang.org/x/net v0.0.0-20210525063256-abc453219eb5 // indirect
 	golang.org/x/sys v0.0.0-20210603125802-9665404d3644 // indirect
@@ -15,3 +16,7 @@ go 1.16
 replace github.com/Philanthropists/toshl-email-autosync/mail => ./mail
 
 replace github.com/Philanthropists/toshl-email-autosync/mail/gmail => ./mail/gmail
+
+replace github.com/Philanthropists/toshl-email-autosync/market => ./market
+
+replace github.com/Philanthropists/toshl-email-autosync/market/rapidapi => ./market/rapidapi
