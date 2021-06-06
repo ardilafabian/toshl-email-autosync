@@ -39,7 +39,7 @@ func handler() {
 	defer emailClient.Logout()
 
 	// Login
-	if err := emailClient.Login("juan.andres.208@gmail.com", "SPM"); err != nil {
+	if err := emailClient.Login("<username>", "<password>"); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Logged in")
