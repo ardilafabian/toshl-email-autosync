@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Philanthropists/toshl-email-autosync/mail"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/gmail/v1"
@@ -72,18 +73,8 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-type Filter string
-
 type GmailService struct {
 	srv *gmail.Service
-}
-
-type MailMessage struct {
-	Id string
-	From string
-	To string
-	Subject string
-	Body []string
 }
 
 func (gs *GmailService) AuthenticateService() {
@@ -130,7 +121,7 @@ func processAndGatherMessages(srv *gmail.Service, in <-chan string, out chan<- *
 	}()
 }
 
-func concatFilters(filters []Filter) string {
+func concatFilters(filters []mail.Filter) string {
 	res := make([]string, len(filters))
 	for i, filter := range filters {
 		res[i] = string(filter)
@@ -138,7 +129,7 @@ func concatFilters(filters []Filter) string {
 	return strings.Join(res, " ")
 }
 
-func getMessageList(srv *gmail.Service, msgIdCh chan<- string, filters []Filter) {
+func getMessageList(srv *gmail.Service, msgIdCh chan<- string, filters []mail.Filter) {
 	const user = "me"
 	concatedFilters := concatFilters(filters)
 
@@ -205,10 +196,10 @@ func getTextPartsFromBody(parts []*gmail.MessagePart) []string {
 	return res
 }
 
-func extractMailMessageFromGmailMessage(msg *gmail.Message) MailMessage {
+func extractMailMessageFromGmailMessage(msg *gmail.Message) mail.Message {
 	headers := convertHeadersToMap(msg.Payload.Headers)
 
-	mailMsg := MailMessage{
+	mailMsg := mail.Message{
 		Id: msg.Id,
 		From: headers["From"],
 		To: headers["To"],
@@ -220,14 +211,14 @@ func extractMailMessageFromGmailMessage(msg *gmail.Message) MailMessage {
 	return mailMsg
 }
 
-func (gs *GmailService) GetMessages(filters []Filter) []MailMessage {
+func (gs *GmailService) GetMessages(filters []mail.Filter) []mail.Message {
 	in := make(chan string)
 	out := make(chan *gmail.Message)
 
 	go getMessageList(gs.srv, in, filters)
 	processAndGatherMessages(gs.srv, in, out)
 
-	var msgs []MailMessage
+	var msgs []mail.Message
 	for msg := range out {
 		// fmt.Println(msg)
 		if msg != nil {
@@ -237,18 +228,4 @@ func (gs *GmailService) GetMessages(filters []Filter) []MailMessage {
 	}
 
 	return msgs
-}
-
-func main() {
-	var gs GmailService
-	gs.AuthenticateService()
-
-	filters := []Filter {
-		"from:alertasynotificaciones@bancolombia.com.co",
-		"after:2020/06/05",
-	}
-
-	msgs := gs.GetMessages(filters)
-
-	fmt.Println(msgs)
 }

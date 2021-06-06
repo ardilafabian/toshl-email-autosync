@@ -12,5 +12,5 @@ type Message struct {
 
 type Service interface {
 	AuthenticateService()
-	GetMessages([]Filter) []Message
+	GetMessages(filters []Filter) []Message
 }
