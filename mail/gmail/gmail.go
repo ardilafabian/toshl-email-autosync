@@ -213,7 +213,8 @@ func extractMailMessageFromGmailMessage(msg *gmail.Message) MailMessage {
 		From: headers["From"],
 		To: headers["To"],
 		Subject: headers["Subject"],
-		Body: getTextPartsFromBody(msg.Payload.Parts),
+		// Body: getTextPartsFromBody(msg.Payload.Parts),
+		Body: []string{msg.Snippet}, // FIXME in the meantime with the snippet
 	}
 
 	return mailMsg
