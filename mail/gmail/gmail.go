@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/Philanthropists/toshl-email-autosync/mail"
+	mail "github.com/Philanthropists/toshl-email-autosync/mail"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/gmail/v1"
@@ -201,6 +201,7 @@ func extractMailMessageFromGmailMessage(msg *gmail.Message) mail.Message {
 
 	mailMsg := mail.Message{
 		Id: msg.Id,
+		Date: headers["Date"],
 		From: headers["From"],
 		To: headers["To"],
 		Subject: headers["Subject"],

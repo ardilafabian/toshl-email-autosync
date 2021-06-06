@@ -11,3 +11,7 @@ require (
 module github.com/Philanthropists/toshl-email-autosync
 
 go 1.16
+
+replace github.com/Philanthropists/toshl-email-autosync/mail => ./mail
+
+replace github.com/Philanthropists/toshl-email-autosync/mail/gmail => ./mail/gmail

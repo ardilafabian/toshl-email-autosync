@@ -15,7 +15,7 @@ func main() {
 
 	filters := []mail.Filter {
 		"from:alertasynotificaciones@bancolombia.com.co",
-		"after:2020/06/05",
+		"after:2020/01/05",
 	}
 
 	for _, msg := range service.GetMessages(filters) {

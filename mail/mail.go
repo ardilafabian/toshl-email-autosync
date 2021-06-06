@@ -4,6 +4,7 @@ type Filter string
 
 type Message struct {
 	Id string
+	Date string
 	From string
 	To string
 	Subject string
