@@ -1,6 +1,16 @@
 package mail
 
-type Filter string
+const (
+	FromFilter = "from"
+	AfterFilter = "after"
+)
+
+type FilterType string
+
+type Filter struct {
+	Type FilterType
+	Value string
+}
 
 type Message struct {
 	Id string

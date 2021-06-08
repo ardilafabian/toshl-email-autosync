@@ -10,12 +10,18 @@ import (
 )
 
 func getMail() {
-	service := &gmail.GmailService{}
+	var service mail.Service = &gmail.GmailService{}
 	service.AuthenticateService()
 
 	filters := []mail.Filter{
-		"from:alertasynotificaciones@bancolombia.com.co",
-		"after:2020/01/05",
+		{
+			Type:  mail.FromFilter,
+			Value: "alertasynotificaciones@bancolombia.com.co",
+		},
+		{
+			Type:  mail.AfterFilter,
+			Value: "2020/01/05",
+		},
 	}
 
 	for _, msg := range service.GetMessages(filters) {

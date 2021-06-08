@@ -124,7 +124,7 @@ func processAndGatherMessages(srv *gmail.Service, in <-chan string, out chan<- *
 func concatFilters(filters []mail.Filter) string {
 	res := make([]string, len(filters))
 	for i, filter := range filters {
-		res[i] = string(filter)
+		res[i] = fmt.Sprintf("%s:%s", filter.Type, filter.Value)
 	}
 	return strings.Join(res, " ")
 }
@@ -219,14 +219,14 @@ func (gs *GmailService) GetMessages(filters []mail.Filter) []mail.Message {
 	go getMessageList(gs.srv, in, filters)
 	processAndGatherMessages(gs.srv, in, out)
 
-	var msgs []mail.Message
+	var messages []mail.Message
 	for msg := range out {
 		// fmt.Println(msg)
 		if msg != nil {
 			mailMsg := extractMailMessageFromGmailMessage(msg)
-			msgs = append(msgs, mailMsg)
+			messages = append(messages, mailMsg)
 		}
 	}
 
-	return msgs
+	return messages
 }

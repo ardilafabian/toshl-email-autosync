@@ -46,6 +46,9 @@ func (api *RapidAPI) GetCredentialsFromFile(filename string) error {
 }
 
 func (api *RapidAPI) GetCurrentValue(symbol string) (float64, error) {
+	const HeaderKey = "x-rapidapi-key"
+	const HeaderHost = "x-rapidapi-host"
+
 	if api.Uri == "" {
 		api.Uri = StockSummaryURI
 	}
@@ -56,8 +59,8 @@ func (api *RapidAPI) GetCurrentValue(symbol string) (float64, error) {
 		return 0, err
 	}
 
-	req.Header.Add("x-rapidapi-key", api.Header.Key)
-	req.Header.Add("x-rapidapi-host", api.Header.Host)
+	req.Header.Add(HeaderKey, api.Header.Key)
+	req.Header.Add(HeaderHost, api.Header.Host)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -65,10 +68,8 @@ func (api *RapidAPI) GetCurrentValue(symbol string) (float64, error) {
 	}
 	defer res.Body.Close()
 
-	body, _ := ioutil.ReadAll(res.Body)
-
 	var value stockValue
-	err = json.Unmarshal(body, &value)
+	err = json.NewDecoder(res.Body).Decode(&value)
 	if err != nil {
 		return 0, err
 	}
