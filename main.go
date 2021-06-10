@@ -6,6 +6,7 @@ import (
 	"github.com/Philanthropists/toshl-email-autosync/mail/gmail"
 	"log"
 
+	"github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia"
 	"github.com/Philanthropists/toshl-email-autosync/market/rapidapi"
 )
 
@@ -41,10 +42,40 @@ func getStock() {
 		log.Println("Error getting stock: ", err)
 	}
 
-	fmt.Printf("Current USD/COP value: %f", value)
+	fmt.Printf("Current USD/COP value: %f\n", value)
+}
+
+func getInvestmentFunds() {
+	const fundName = "Renta Sostenible Global"
+	list, err := bancolombia.GetAvailableInvestmentFundsBasicInfo()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var fundId bancolombia.InvestmentFundId
+	found := false
+	for _, fundInfo := range list {
+		if fundInfo.Name == fundName {
+			fundId = fundInfo.Nit
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		log.Fatalf("fund name [%s] not found in list", fundName)
+	}
+
+	fund, err := bancolombia.GetInvestmentFundById(fundId)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("%+v", fund)
 }
 
 func main() {
 	getMail()
 	getStock()
+	getInvestmentFunds()
 }
