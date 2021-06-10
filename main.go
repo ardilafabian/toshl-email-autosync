@@ -5,9 +5,11 @@ import (
 	"github.com/Philanthropists/toshl-email-autosync/mail"
 	"github.com/Philanthropists/toshl-email-autosync/mail/gmail"
 	"log"
+	"sync"
 
 	"github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia"
 	"github.com/Philanthropists/toshl-email-autosync/market/rapidapi"
+	toshl "github.com/andreagrandi/toshl-go"
 )
 
 func getMail() {
@@ -74,8 +76,31 @@ func getInvestmentFunds() {
 	log.Printf("%+v", fund)
 }
 
+func getToshlInfo() {
+	token := GetDefaultToshlToken()
+	client := toshl.NewClient(token, nil)
+
+	accounts, err := client.Accounts(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%+v\n", accounts)
+}
+
+func waitToFinish(wg *sync.WaitGroup, f func()) {
+	f()
+	wg.Done()
+}
+
 func main() {
-	getMail()
-	getStock()
-	getInvestmentFunds()
+	var wg sync.WaitGroup
+	wg.Add(4)
+
+	go waitToFinish(&wg, getMail)
+	go waitToFinish(&wg, getStock)
+	go waitToFinish(&wg, getInvestmentFunds)
+	go waitToFinish(&wg, getToshlInfo)
+
+	wg.Wait()
 }
