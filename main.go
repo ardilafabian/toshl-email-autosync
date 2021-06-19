@@ -9,7 +9,7 @@ import (
 
 	"github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia"
 	"github.com/Philanthropists/toshl-email-autosync/market/rapidapi"
-	toshl "github.com/andreagrandi/toshl-go"
+	toshl "github.com/Philanthropists/toshl-go"
 )
 
 func getMail() {
