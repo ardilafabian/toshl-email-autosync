@@ -5,7 +5,6 @@ require (
 	github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia v0.0.0-20210610050019-2b27ba4dc3ab
 	github.com/Philanthropists/toshl-email-autosync/market/rapidapi v0.0.0-20210610050019-2b27ba4dc3ab
 	github.com/Philanthropists/toshl-go v0.1.0
-	github.com/andreagrandi/toshl-go v0.0.0-20161227205856-112e163a45ca // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
 	golang.org/x/oauth2 v0.0.0-20210615190721-d04028783cf1 // indirect
@@ -25,4 +24,4 @@ replace github.com/Philanthropists/toshl-email-autosync/market => ./market
 
 replace github.com/Philanthropists/toshl-email-autosync/market/rapidapi => ./market/rapidapi
 
-replace github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia => ./market/investment_fund/bancolombia
+replace github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia => ./market/investment-fund/bancolombia

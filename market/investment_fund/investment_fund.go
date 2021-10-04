@@ -1,2 +1,0 @@
-package investment_fund
-

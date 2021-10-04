@@ -21,7 +21,11 @@ const (
 var copUnit currency.Unit
 
 func init() {
-	copUnit, _ = currency.ParseISO(copUnitCode)
+	var err error
+	copUnit, err = currency.ParseISO(copUnitCode)
+	if err != nil {
+		panic(err)
+	}
 }
 
 type money currency.Amount

@@ -51,7 +51,7 @@ func getInvestmentFunds() {
 	const fundName = "Renta Sostenible Global"
 	list, err := bancolombia.GetAvailableInvestmentFundsBasicInfo()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	var fundId bancolombia.InvestmentFundId
@@ -65,12 +65,13 @@ func getInvestmentFunds() {
 	}
 
 	if !found {
-		log.Fatalf("fund name [%s] not found in list", fundName)
+		log.Printf("fund name [%s] not found in list", fundName)
+		return
 	}
 
 	fund, err := bancolombia.GetInvestmentFundById(fundId)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	log.Printf("%+v", fund)
