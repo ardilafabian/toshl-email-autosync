@@ -75,36 +75,36 @@ func (v *date) UnmarshalJSON(b []byte) error {
 }
 
 func (v date) String() string {
-	return fmt.Sprintf("%s", time.Time(v))
+	return time.Time(v).String()
 }
 
 type InvestmentFundId string
 
 type InvestmentFundBasicInfo struct {
-	Nit InvestmentFundId `json:"nit"`
-	Name string `json:"nombre"`
+	Nit  InvestmentFundId `json:"nit"`
+	Name string           `json:"nombre"`
 }
 
 type InvestmentFund struct {
 	InvestmentFundBasicInfo
-	Score string `json:"calificacion"`
-	Term string `json:"plazo"`
-	UnitValue money `json:"valorDeUnidad"`
-	CurrentValue money `json:"valorEnPesos"`
+	Score         string `json:"calificacion"`
+	Term          string `json:"plazo"`
+	UnitValue     money  `json:"valorDeUnidad"`
+	CurrentValue  money  `json:"valorEnPesos"`
 	Profitability struct {
 		Days struct {
-			WeeklyPercentage percentage `json:"semanal"`
-			MonthlyPercentage percentage `json:"mensual"`
+			WeeklyPercentage   percentage `json:"semanal"`
+			MonthlyPercentage  percentage `json:"mensual"`
 			SemesterPercentage percentage `json:"semestral"`
 		} `json:"dias"`
 		Years struct {
-			Current percentage `json:"anioCorrido"`
-			LastYear percentage `json:"ultimoAnio"`
-			LastTwoYears percentage `json:"ultimos2Anios"`
+			Current        percentage `json:"anioCorrido"`
+			LastYear       percentage `json:"ultimoAnio"`
+			LastTwoYears   percentage `json:"ultimos2Anios"`
 			LastThreeYears percentage `json:"ultimos3Anios"`
 		} `json:"anios"`
 	} `json:"rentabilidad"`
-	ClosingDate date `json:"fechaCierre"`
+	ClosingDate   date   `json:"fechaCierre"`
 	Administrator string `json:"sociedadAdministradora"`
 }
 

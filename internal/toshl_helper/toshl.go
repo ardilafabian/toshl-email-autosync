@@ -1,4 +1,4 @@
-package main
+package toshl_helper
 
 import (
 	"io/ioutil"

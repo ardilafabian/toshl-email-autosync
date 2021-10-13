@@ -1,27 +1,29 @@
-require (
-	cloud.google.com/go v0.84.0 // indirect
-	github.com/Philanthropists/toshl-email-autosync/mail v0.0.0-20210610050019-2b27ba4dc3ab
-	github.com/Philanthropists/toshl-email-autosync/mail/gmail v0.0.0-20210610050019-2b27ba4dc3ab
-	github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia v0.0.0-20210610050019-2b27ba4dc3ab
-	github.com/Philanthropists/toshl-email-autosync/market/rapidapi v0.0.0-20210610050019-2b27ba4dc3ab
-	github.com/Philanthropists/toshl-go v0.1.0
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
-	golang.org/x/oauth2 v0.0.0-20210615190721-d04028783cf1 // indirect
-	golang.org/x/sys v0.0.0-20210616094352-59db8d763f22 // indirect
-	google.golang.org/genproto v0.0.0-20210617175327-b9e0b3197ced // indirect
-)
-
 module github.com/Philanthropists/toshl-email-autosync
 
-go 1.16
+go 1.17
 
-replace github.com/Philanthropists/toshl-email-autosync/mail => ./mail
+require (
+	github.com/Philanthropists/toshl-go v0.1.0
+	github.com/emersion/go-imap v1.2.0
+	github.com/emersion/go-message v0.15.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible
+	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
+	golang.org/x/text v0.3.7
+	google.golang.org/api v0.58.0
+)
 
-replace github.com/Philanthropists/toshl-email-autosync/mail/gmail => ./mail/gmail
-
-replace github.com/Philanthropists/toshl-email-autosync/market => ./market
-
-replace github.com/Philanthropists/toshl-email-autosync/market/rapidapi => ./market/rapidapi
-
-replace github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia => ./market/investment-fund/bancolombia
+require (
+	cloud.google.com/go v0.94.1 // indirect
+	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21 // indirect
+	github.com/emersion/go-textwrapper v0.0.0-20200911093747-65d896831594 // indirect
+	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
+	go.opencensus.io v0.23.0 // indirect
+	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420 // indirect
+	golang.org/x/sys v0.0.0-20210917161153-d61c044b1678 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/genproto v0.0.0-20210917145530-b395a37504d4 // indirect
+	google.golang.org/grpc v1.40.0 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
+)

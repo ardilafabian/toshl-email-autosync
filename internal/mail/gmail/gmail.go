@@ -2,10 +2,13 @@ package gmail
 
 import (
 	"context"
-	"encoding/base64"
+	"crypto/x509"
+	//"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
-	mail "github.com/Philanthropists/toshl-email-autosync/mail"
+	"github.com/Philanthropists/toshl-email-autosync/internal/mail/types"
+	"github.com/golang-jwt/jwt"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/gmail/v1"
@@ -16,6 +19,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -73,11 +77,115 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-type GmailService struct {
+func GetGmailService() types.Service {
+	return &gmailService{}
+}
+
+type gmailService struct {
 	srv *gmail.Service
 }
 
-func (gs *GmailService) AuthenticateService() {
+type ServiceAccountPK struct {
+	Type                    string `json:"type"`
+	ProjectId               string `json:"project_id"`
+	PrivateKeyId            string `json:"private_key_id"`
+	PrivateKey              string `json:"private_key"`
+	ClientEmail             string `json:"client_email"`
+	ClientId                string `json:"client_id"`
+	AuthUri                 string `json:"auth_uri"`
+	TokenUri                string `json:"token_uri"`
+	AuthProviderX509CertUrl string `json:"auth_provider_x509_cert_url"`
+	ClientX509CertUrl       string `json:"client_x509_cert_url"`
+}
+
+func GetCredentialsFromServiceAccount() {
+	credentials_file, err := ioutil.ReadFile("service-account-pk.json")
+	if err != nil {
+		log.Fatalf("Unable to read client secret file: %v", err)
+	}
+
+	var sv ServiceAccountPK
+	err = json.Unmarshal(credentials_file, &sv)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%s\n", sv.PrivateKey)
+	block, _ := pem.Decode([]byte(sv.PrivateKey))
+	if block == nil || block.Type != "PRIVATE KEY" {
+		panic("block is not a private key or is nil")
+	}
+
+	pk, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+
+	iat := time.Now()
+	exp := iat.Add(3600 * time.Second)
+
+	claims := jwt.StandardClaims{
+		Audience:  "https://firestore.googleapis.com/",
+		IssuedAt:  iat.Unix(),
+		ExpiresAt: exp.Unix(),
+		Issuer:    sv.ClientEmail,
+		Subject:   sv.ClientEmail,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = sv.PrivateKeyId
+	ss, err := token.SignedString(pk)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("------------------------------------\n")
+	fmt.Printf("%+v\n", ss)
+	fmt.Printf("------------------------------------\n")
+
+	TryToGetAccessToken(ss)
+}
+
+type AccessTokenRequestBody struct {
+	GrantType          string `json:"grantType"`
+	Audience           string `json:"audience"`
+	Scope              string `json:"scope"`
+	RequestedTokenType string `json:"requestedTokenType"`
+	SubjectToken       string `json:"subjectToken"`
+	SubjectTokenType   string `json:"subjectTokenType"`
+	Options            string `json:"options"`
+}
+
+func TryToGetAccessToken(token string) {
+	client := http.DefaultClient
+
+	const host = "https://sts.googleapis.com"
+	const endpoint = host + "/v1/token"
+	reqBody := AccessTokenRequestBody{
+		GrantType:          "urn:ietf:params:oauth:grant-type:token-exchange",
+		Audience:           host,
+		Scope:              gmail.GmailReadonlyScope,
+		RequestedTokenType: "urn:ietf:params:oauth:token-type:access_token",
+		SubjectToken:       token,
+		SubjectTokenType:   "urn:ietf:params:oauth:token-type:jwt",
+		Options:            "",
+	}
+
+	jsonStr, err := json.Marshal(reqBody)
+	if err != nil {
+		panic(err)
+	}
+
+	resp, err := client.Post(endpoint, "application/json", strings.NewReader(string(jsonStr)))
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf(">>>>>>>>>>>>>>> Response: %+v\n\n\n\n", *resp)
+}
+
+func (gs *gmailService) AuthenticateService() {
+	defer GetCredentialsFromServiceAccount()
+
 	ctx := context.Background()
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
@@ -121,7 +229,7 @@ func processAndGatherMessages(srv *gmail.Service, in <-chan string, out chan<- *
 	}()
 }
 
-func concatFilters(filters []mail.Filter) string {
+func concatFilters(filters []types.Filter) string {
 	res := make([]string, len(filters))
 	for i, filter := range filters {
 		res[i] = fmt.Sprintf("%s:%s", filter.Type, filter.Value)
@@ -129,7 +237,7 @@ func concatFilters(filters []mail.Filter) string {
 	return strings.Join(res, " ")
 }
 
-func getMessageList(srv *gmail.Service, msgIdCh chan<- string, filters []mail.Filter) {
+func getMessageList(srv *gmail.Service, msgIdCh chan<- string, filters []types.Filter) {
 	const user = "me"
 	concatedFilters := concatFilters(filters)
 
@@ -167,43 +275,43 @@ func convertHeadersToMap(headers []*gmail.MessagePartHeader) map[string]string {
 	return dict
 }
 
-func convertBase64ToText(encoded string) (string, error) {
-	decoded, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return "", err
-	}
+// func convertBase64ToText(encoded string) (string, error) {
+// 	decoded, err := base64.StdEncoding.DecodeString(encoded)
+// 	if err != nil {
+// 		return "", err
+// 	}
+//
+// 	decodedString := string(decoded)
+// 	return decodedString, nil
+// }
+//
+// func getTextPartsFromBody(parts []*gmail.MessagePart) []string {
+// 	const mimeType = "text/html" // TODO change to various mimeTypes with a Set
+// 	var res []string
+//
+// 	for _, part := range parts {
+// 		if part.MimeType == mimeType {
+// 			text, err := convertBase64ToText(part.Body.Data)
+// 			if err != nil {
+// 				log.Printf("Error decoding content: %s", err)
+// 				continue
+// 			}
+//
+// 			res = append(res, text)
+// 		}
+// 	}
+//
+// 	return res
+// }
 
-	decodedString := string(decoded)
-	return decodedString, nil
-}
-
-func getTextPartsFromBody(parts []*gmail.MessagePart) []string {
-	const mimeType = "text/html" // TODO change to various mimeTypes with a Set
-	var res []string
-
-	for _, part := range parts {
-		if part.MimeType == mimeType {
-			text, err := convertBase64ToText(part.Body.Data)
-			if err != nil {
-				log.Printf("Error decoding content: %s", err)
-				continue
-			}
-
-			res = append(res, text)
-		}
-	}
-
-	return res
-}
-
-func extractMailMessageFromGmailMessage(msg *gmail.Message) mail.Message {
+func extractMailMessageFromGmailMessage(msg *gmail.Message) types.Message {
 	headers := convertHeadersToMap(msg.Payload.Headers)
 
-	mailMsg := mail.Message{
-		Id: msg.Id,
-		Date: headers["Date"],
-		From: headers["From"],
-		To: headers["To"],
+	mailMsg := types.Message{
+		Id:      msg.Id,
+		Date:    headers["Date"],
+		From:    headers["From"],
+		To:      headers["To"],
 		Subject: headers["Subject"],
 		// Body: getTextPartsFromBody(msg.Payload.Parts),
 		Body: []string{msg.Snippet}, // FIXME in the meantime with the snippet
@@ -212,14 +320,14 @@ func extractMailMessageFromGmailMessage(msg *gmail.Message) mail.Message {
 	return mailMsg
 }
 
-func (gs *GmailService) GetMessages(filters []mail.Filter) []mail.Message {
+func (gs *gmailService) GetMessages(filters []types.Filter) []types.Message {
 	in := make(chan string)
 	out := make(chan *gmail.Message)
 
 	go getMessageList(gs.srv, in, filters)
 	processAndGatherMessages(gs.srv, in, out)
 
-	var messages []mail.Message
+	var messages []types.Message
 	for msg := range out {
 		// fmt.Println(msg)
 		if msg != nil {

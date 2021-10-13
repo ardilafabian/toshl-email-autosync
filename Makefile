@@ -1,6 +1,6 @@
 .PHONY: build
 build: bin vendor fmt
-	go build -o bin
+	go build -o bin cmd/run/run.go
 
 bin:
 	mkdir -p bin

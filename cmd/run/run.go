@@ -2,27 +2,29 @@ package main
 
 import (
 	"fmt"
-	"github.com/Philanthropists/toshl-email-autosync/mail"
-	"github.com/Philanthropists/toshl-email-autosync/mail/gmail"
+	"github.com/Philanthropists/toshl-email-autosync/internal/mail/gmail"
+	"github.com/Philanthropists/toshl-email-autosync/internal/mail/types"
 	"log"
 	"sync"
 
-	"github.com/Philanthropists/toshl-email-autosync/market/investment_fund/bancolombia"
-	"github.com/Philanthropists/toshl-email-autosync/market/rapidapi"
-	toshl "github.com/Philanthropists/toshl-go"
+	"github.com/Philanthropists/toshl-email-autosync/internal/market/investment-fund/bancolombia"
+	"github.com/Philanthropists/toshl-email-autosync/internal/market/rapidapi"
+	"github.com/Philanthropists/toshl-email-autosync/internal/toshl_helper"
+
+	"github.com/Philanthropists/toshl-go"
 )
 
 func getMail() {
-	var service mail.Service = &gmail.GmailService{}
+	service := gmail.GetGmailService()
 	service.AuthenticateService()
 
-	filters := []mail.Filter{
+	filters := []types.Filter{
 		{
-			Type:  mail.FromFilter,
+			Type:  types.FromFilter,
 			Value: "alertasynotificaciones@bancolombia.com.co",
 		},
 		{
-			Type:  mail.AfterFilter,
+			Type:  types.AfterFilter,
 			Value: "2020/01/05",
 		},
 	}
@@ -78,7 +80,7 @@ func getInvestmentFunds() {
 }
 
 func getToshlInfo() {
-	token := GetDefaultToshlToken()
+	token := toshl_helper.GetDefaultToshlToken()
 	client := toshl.NewClient(token, nil)
 
 	accounts, err := client.Accounts(nil)

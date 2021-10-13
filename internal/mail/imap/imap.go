@@ -15,13 +15,13 @@ var (
 	DefaultHTTPGetAddress = "https://checkip.amazonaws.com"
 
 	// ErrNoIP No IP found in response
-	ErrNoIP = errors.New("No IP in HTTP response")
+	ErrNoIP = errors.New("no IP in HTTP response")
 
 	// ErrNon200Response non 200 status code in response
-	ErrNon200Response = errors.New("Non 200 Response found")
+	ErrNon200Response = errors.New("non 200 Response found")
 )
 
-func handler() {
+func Handler() {
 	//actualTime := time.Now()
 
 	//(events.APIGatewayProxyResponse, error)
@@ -99,7 +99,7 @@ func handler() {
 			case *mail.InlineHeader:
 				// This is the message's text (can be plain-text or HTML)
 				b, _ := ioutil.ReadAll(p.Body)
-				log.Println("Got text: %v", len(string(b)))
+				log.Printf("Got text: %v\n", len(string(b)))
 			}
 		}
 	}
@@ -110,9 +110,4 @@ func handler() {
 	//	Body:       "",
 	//	StatusCode: 200,
 	//}, nil
-}
-
-func main() {
-	//lambda.Start(handler)
-	handler()
 }

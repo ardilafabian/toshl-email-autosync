@@ -1,4 +1,4 @@
-package mail
+package types
 
 const (
 	FromFilter FilterType = iota
@@ -19,17 +19,17 @@ func (f FilterType) String() string {
 }
 
 type Filter struct {
-	Type FilterType
+	Type  FilterType
 	Value string
 }
 
 type Message struct {
-	Id string
-	Date string
-	From string
-	To string
+	Id      string
+	Date    string
+	From    string
+	To      string
 	Subject string
-	Body []string
+	Body    []string
 }
 
 type Service interface {
