@@ -3,10 +3,13 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/Philanthropists/toshl-email-autosync/internal/mail/imap"
 	"log"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/Philanthropists/toshl-email-autosync/internal/market/investment-fund/bancolombia"
 	"github.com/Philanthropists/toshl-email-autosync/internal/market/rapidapi"
@@ -103,8 +106,37 @@ func getToshlInfo() {
 	fmt.Printf("%+v\n", accounts)
 }
 
+var filterFnc imap.Filter = func(msg imap.Message) bool {
+	keep := true
+	keep = keep && msg.Message != nil
+	keep = keep && msg.Message.Envelope != nil
+	if keep {
+		keep = false
+		for _, address := range msg.Message.Envelope.From {
+			from := address.Address()
+			if from == "alertasynotificaciones@notificacionesbancolombia.com" {
+				keep = true
+				break
+			}
+		}
+	}
+
+	if keep {
+		text := string(msg.RawBody)
+
+		shouldProcess := strings.Contains(text, "Pago")
+		shouldProcess = shouldProcess || strings.Contains(text, "Compra")
+		shouldProcess = shouldProcess || strings.Contains(text, "Transferencia")
+
+		keep = shouldProcess
+	}
+
+	return keep
+}
+
 func GetEmail() {
 	const inboxMailbox = "INBOX"
+	// const allMailPattern = "All Mail"
 
 	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
 	if err != nil {
@@ -118,6 +150,24 @@ func GetEmail() {
 	}
 
 	fmt.Println("Mailboxes:", mailboxes)
+
+	since := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+	messages, err := mailClient.GetMessages(inboxMailbox, since, filterFnc)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, msg := range messages {
+		fmt.Printf("Message #%d // [%s] // [%s] // size %d\n", msg.SeqNum, msg.Envelope.Date, msg.Envelope.Subject, len(msg.RawBody))
+	}
+
+	// var allMailMailBox imap.Mailbox
+	// for _, mailbox := range mailboxes {
+	// 	if strings.Contains(string(mailbox), allMailPattern) {
+	// 		allMailMailBox = mailbox
+	// 		break
+	// 	}
+	// }
 }
 
 func waitToFinish(wg *sync.WaitGroup, f func()) {
@@ -132,7 +182,25 @@ func getAuth() {
 	}
 }
 
+type Options struct {
+	DryRun bool
+	Debug  bool
+}
+
+func GetOptions() Options {
+	defer flag.Parse()
+
+	var options Options
+
+	flag.BoolVar(&options.DryRun, "dryRun", false, "Tell what will happen but not execute")
+	flag.BoolVar(&options.Debug, "debug", false, "Output debug output")
+
+	return options
+}
+
 func main() {
+	_ = GetOptions()
+
 	getAuth()
 
 	var wg sync.WaitGroup
