@@ -1,9 +1,10 @@
 package main
 
 import (
+	_ "embed"
+	"encoding/json"
 	"fmt"
-	"github.com/Philanthropists/toshl-email-autosync/internal/mail/gmail"
-	"github.com/Philanthropists/toshl-email-autosync/internal/mail/types"
+	"github.com/Philanthropists/toshl-email-autosync/internal/mail/imap"
 	"log"
 	"sync"
 
@@ -14,25 +15,36 @@ import (
 	"github.com/Philanthropists/toshl-go"
 )
 
-func getMail() {
-	service := gmail.GetGmailService()
-	service.AuthenticateService()
+// func getMail() {
+// 	service := gmail.GetGmailService()
+// 	service.AuthenticateService()
+//
+// 	filters := []types.Filter{
+// 		{
+// 			Type:  types.FromFilter,
+// 			Value: "alertasynotificaciones@bancolombia.com.co",
+// 		},
+// 		{
+// 			Type:  types.AfterFilter,
+// 			Value: "2020/01/05",
+// 		},
+// 	}
+//
+// 	for _, msg := range service.GetMessages(filters) {
+// 		fmt.Println(msg)
+// 	}
+// }
 
-	filters := []types.Filter{
-		{
-			Type:  types.FromFilter,
-			Value: "alertasynotificaciones@bancolombia.com.co",
-		},
-		{
-			Type:  types.AfterFilter,
-			Value: "2020/01/05",
-		},
-	}
+//go:embed .auth.json
+var rawAuth []byte
 
-	for _, msg := range service.GetMessages(filters) {
-		fmt.Println(msg)
-	}
+type Auth struct {
+	Addr     string `json:"addr"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
+
+var auth Auth
 
 func getStock() {
 	api := rapidapi.RapidAPI{}
@@ -91,16 +103,43 @@ func getToshlInfo() {
 	fmt.Printf("%+v\n", accounts)
 }
 
+func GetEmail() {
+	const inboxMailbox = "INBOX"
+
+	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
+	if err != nil {
+		panic(err)
+	}
+	defer mailClient.Logout()
+
+	mailboxes, err := mailClient.GetMailBoxes()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Mailboxes:", mailboxes)
+}
+
 func waitToFinish(wg *sync.WaitGroup, f func()) {
 	f()
 	wg.Done()
 }
 
+func getAuth() {
+	err := json.Unmarshal(rawAuth, &auth)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
+	getAuth()
+
 	var wg sync.WaitGroup
 	wg.Add(4)
 
-	go waitToFinish(&wg, getMail)
+	// go waitToFinish(&wg, getMail)
+	go waitToFinish(&wg, GetEmail)
 	go waitToFinish(&wg, getStock)
 	go waitToFinish(&wg, getInvestmentFunds)
 	go waitToFinish(&wg, getToshlInfo)

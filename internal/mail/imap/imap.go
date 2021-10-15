@@ -1,113 +1,73 @@
 package imap
 
 import (
-	"errors"
-	"github.com/emersion/go-imap"
+	_imap "github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
-	"github.com/emersion/go-message/mail"
-	"io"
-	"io/ioutil"
 	"log"
+	"time"
 )
 
-var (
-	// DefaultHTTPGetAddress Default Address
-	DefaultHTTPGetAddress = "https://checkip.amazonaws.com"
+type Mailbox string
 
-	// ErrNoIP No IP found in response
-	ErrNoIP = errors.New("no IP in HTTP response")
+type Message struct {
+	_imap.Message
+}
 
-	// ErrNon200Response non 200 status code in response
-	ErrNon200Response = errors.New("non 200 Response found")
-)
+type Filter func(message Message) bool
 
-func Handler() {
-	//actualTime := time.Now()
+type MailClient interface {
+	GetMailBoxes() ([]Mailbox, error)
+	GetMessages(mailbox Mailbox, since time.Time, filter Filter) ([]Message, error)
+	Move(messages []Message, destMailbox Mailbox) error
+	Logout() error
+}
 
-	//(events.APIGatewayProxyResponse, error)
-
-	log.Println("Connecting to server...")
-
-	// Connect to server
-	emailClient, err := client.DialTLS("imap.gmail.com:993", nil)
+func GetMailClient(addr, username, password string) (MailClient, error) {
+	emailClient, err := client.DialTLS(addr, nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	log.Println("Connected")
 
-	// Don't forget to logout
-	defer emailClient.Logout()
-
-	// Login
-	if err := emailClient.Login("<username>", "<password>"); err != nil {
-		log.Fatal(err)
+	if err := emailClient.Login(username, password); err != nil {
+		return nil, err
 	}
-	log.Println("Logged in")
+	log.Println("Connected and logged in")
 
-	// List mailboxes
-	mailboxes := make(chan *imap.MailboxInfo, 10)
+	return &mailClientImpl{client: emailClient}, nil
+}
+
+type mailClientImpl struct {
+	client *client.Client
+}
+
+func (m mailClientImpl) GetMailBoxes() ([]Mailbox, error) {
+	rawMailboxes := make(chan *_imap.MailboxInfo, 10)
 	done := make(chan error, 1)
 	go func() {
-		done <- emailClient.List("", "*", mailboxes)
+		done <- m.client.List("", "*", rawMailboxes)
 	}()
 
-	log.Println("Mailboxes:")
-	for m := range mailboxes {
-		log.Println(m.Name)
+	var mailboxes []Mailbox
+	for m := range rawMailboxes {
+		mailbox := Mailbox(m.Name)
+		mailboxes = append(mailboxes, mailbox)
 	}
 
-	if err := <-done; err != nil {
-		log.Fatal(err)
+	return mailboxes, nil
+}
+
+func (m mailClientImpl) GetMessages(mailbox Mailbox, since time.Time, filter Filter) ([]Message, error) {
+	panic("implement me")
+}
+
+func (m mailClientImpl) Move(messages []Message, destMailbox Mailbox) error {
+	panic("implement me")
+}
+
+func (m mailClientImpl) Logout() error {
+	if err := m.client.Logout(); err != nil {
+		return err
 	}
 
-	// Select INBOX
-	mbox, err := emailClient.Select("INBOX", true)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("Flags for INBOX:", mbox.Flags)
-
-	// Get the last 4 messages
-	from := uint32(1)
-	to := mbox.Messages
-	if mbox.Messages > 100 {
-		// We're using unsigned integers here, only subtract if the result is > 0
-		from = mbox.Messages - 100
-	}
-	seqset := new(imap.SeqSet)
-	seqset.AddRange(from, to)
-
-	messages := make(chan *imap.Message, 10)
-	done = make(chan error, 1)
-
-	var section imap.BodySectionName
-	items := []imap.FetchItem{section.FetchItem()}
-	go func() {
-		emailClient.Fetch(seqset, items, messages)
-	}()
-
-	for msg := range messages {
-		t := msg.GetBody(&section)
-		mr, _ := mail.CreateReader(t)
-		for {
-			p, err := mr.NextPart()
-			if err == io.EOF {
-				break
-			}
-
-			switch p.Header.(type) {
-			case *mail.InlineHeader:
-				// This is the message's text (can be plain-text or HTML)
-				b, _ := ioutil.ReadAll(p.Body)
-				log.Printf("Got text: %v\n", len(string(b)))
-			}
-		}
-	}
-
-	log.Println("Done!")
-
-	//return events.APIGatewayProxyResponse{
-	//	Body:       "",
-	//	StatusCode: 200,
-	//}, nil
+	return nil
 }
