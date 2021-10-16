@@ -3,12 +3,14 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/Philanthropists/toshl-email-autosync/internal/mail/imap"
 	"log"
+	"regexp"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Philanthropists/toshl-email-autosync/internal/market/investment-fund/bancolombia"
@@ -49,7 +51,7 @@ type Auth struct {
 
 var auth Auth
 
-func getStock() {
+func GetStock() {
 	api := rapidapi.RapidAPI{}
 	err := api.GetCredentialsFromFile("rapidapi-keys.json")
 	if err != nil {
@@ -64,7 +66,7 @@ func getStock() {
 	fmt.Printf("Current USD/COP value: %f\n", value)
 }
 
-func getInvestmentFunds() {
+func GetInvestmentFunds() {
 	const fundName = "Renta Sostenible Global"
 	list, err := bancolombia.GetAvailableInvestmentFundsBasicInfo()
 	if err != nil {
@@ -94,7 +96,7 @@ func getInvestmentFunds() {
 	log.Printf("%+v", fund)
 }
 
-func getToshlInfo() {
+func GetToshlInfo() {
 	token := toshl_helper.GetDefaultToshlToken()
 	client := toshl.NewClient(token, nil)
 
@@ -134,45 +136,134 @@ var filterFnc imap.Filter = func(msg imap.Message) bool {
 	return keep
 }
 
-func GetEmail() {
-	const inboxMailbox = "INBOX"
-	// const allMailPattern = "All Mail"
-
-	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
-	if err != nil {
-		panic(err)
-	}
-	defer mailClient.Logout()
-
-	mailboxes, err := mailClient.GetMailBoxes()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Mailboxes:", mailboxes)
-
-	since := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
-	messages, err := mailClient.GetMessages(inboxMailbox, since, filterFnc)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, msg := range messages {
-		fmt.Printf("Message #%d // [%s] // [%s] // size %d\n", msg.SeqNum, msg.Envelope.Date, msg.Envelope.Subject, len(msg.RawBody))
-	}
-
-	// var allMailMailBox imap.Mailbox
-	// for _, mailbox := range mailboxes {
-	// 	if strings.Contains(string(mailbox), allMailPattern) {
-	// 		allMailMailBox = mailbox
-	// 		break
-	// 	}
-	// }
+func GetLastProcessedDate() time.Time {
+	// TODO get date from DynamoDB
+	return time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
 }
 
-func waitToFinish(wg *sync.WaitGroup, f func()) {
-	f()
-	wg.Done()
+func GetEmailFromBancolombia(mailClient imap.MailClient) ([]imap.Message, error) {
+	const inboxMailbox = "INBOX"
+
+	// mailboxes, err := mailClient.GetMailBoxes()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	since := GetLastProcessedDate()
+	messages, err := mailClient.GetMessages(inboxMailbox, since, filterFnc)
+	if err != nil {
+		return nil, err
+	}
+
+	return messages, nil
+}
+
+type Currency struct {
+	toshl.Currency
+}
+
+type TransactionInfo struct {
+	MsgId   uint32
+	Type    string
+	Place   string
+	Value   Currency
+	Account string
+	Date    time.Time
+}
+
+var regexpMap = map[string]*regexp.Regexp{
+	"Pago":          regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) a (?P<place>.+) desde cta \*(?P<account>\d{4})\.`),
+	"Compra":        regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) en (?P<place>.+)\..+T\.Cred \*(?P<account>\d{4})\.`),
+	"Transferencia": regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) desde cta \*(?P<account>\d{4}).+(?P<place>\d{16})\.`),
+}
+
+func ExtractTransactionInfoFromMessages(msgs []imap.Message) ([]*TransactionInfo, error) {
+	var transactions []*TransactionInfo
+	for _, msg := range msgs {
+		t, err := extractTransactionInfoFromMessage(msg)
+		if err == nil {
+			transactions = append(transactions, t)
+		}
+	}
+
+	return transactions, nil
+}
+
+func extractTransactionInfoFromMessage(msg imap.Message) (*TransactionInfo, error) {
+	text := string(msg.RawBody)
+
+	var selected string
+	for key := range regexpMap {
+		if strings.Contains(text, key) {
+			selected = key
+			break
+		}
+	}
+
+	if selected == "" {
+		return nil, errors.New("message does not match any transaction type case")
+	}
+
+	selectedRegexp := regexpMap[selected]
+
+	result := extractFieldsStringWithRegexp(text, selectedRegexp)
+
+	value, err := getValueFromText(result["value"])
+	if err != nil {
+		return nil, err
+	}
+
+	return &TransactionInfo{
+		MsgId:   msg.SeqNum,
+		Type:    result["type"],
+		Place:   result["place"],
+		Value:   value,
+		Account: result["account"],
+		Date:    msg.Envelope.Date,
+	}, nil
+}
+
+func extractFieldsStringWithRegexp(s string, r *regexp.Regexp) map[string]string {
+	match := r.FindStringSubmatch(s)
+	result := make(map[string]string)
+	for i, name := range r.SubexpNames() {
+		if i != 0 && name != "" {
+			result[name] = match[i]
+		}
+	}
+
+	return result
+}
+
+// This would be way easier if Bancolombia had a consistent use of commas and dots inside the currency
+var currencyRegexp = regexp.MustCompile(`^(?P<integer>[0-9\.,]+)(?P<decimal>\d{2})$`)
+
+func getValueFromText(s string) (Currency, error) {
+	if !currencyRegexp.MatchString(s) {
+		return Currency{}, fmt.Errorf("string [%s] does not match regex [%s]", s, currencyRegexp.String())
+	}
+
+	res := extractFieldsStringWithRegexp(s, currencyRegexp)
+	integer, ok := res["integer"]
+	if !ok {
+		return Currency{}, fmt.Errorf("string [%s] should have an integer part", s)
+	}
+
+	decimal, ok := res["decimal"]
+	if !ok {
+		return Currency{}, fmt.Errorf("string [%s] should have a decimal part", s)
+	}
+
+	integer = strings.ReplaceAll(integer, ",", "")
+	integer = strings.ReplaceAll(integer, ".", "")
+	valueStr := integer + "." + decimal
+	value, err := strconv.ParseFloat(valueStr, 64)
+
+	var currency Currency
+	currency.Code = "COP"
+	currency.Rate = value
+
+	return currency, err
 }
 
 func getAuth() {
@@ -187,7 +278,7 @@ type Options struct {
 	Debug  bool
 }
 
-func GetOptions() Options {
+func getOptions() Options {
 	defer flag.Parse()
 
 	var options Options
@@ -199,18 +290,23 @@ func GetOptions() Options {
 }
 
 func main() {
-	_ = GetOptions()
+	_ = getOptions()
 
 	getAuth()
+	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
+	if err != nil {
+		panic(err)
+	}
+	defer mailClient.Logout()
 
-	var wg sync.WaitGroup
-	wg.Add(4)
+	msgs, err := GetEmailFromBancolombia(mailClient)
+	if err != nil {
+		panic(err)
+	}
 
-	// go waitToFinish(&wg, getMail)
-	go waitToFinish(&wg, GetEmail)
-	go waitToFinish(&wg, getStock)
-	go waitToFinish(&wg, getInvestmentFunds)
-	go waitToFinish(&wg, getToshlInfo)
+	transactions, _ := ExtractTransactionInfoFromMessages(msgs)
 
-	wg.Wait()
+	for _, t := range transactions {
+		log.Printf("%+v", t)
+	}
 }
