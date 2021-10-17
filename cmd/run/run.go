@@ -300,15 +300,16 @@ func getOptions() Options {
 	return options
 }
 
-func getMappableAccounts(accounts []toshl.Account) map[string]*toshl.Account {
+func getMappableAccounts(accounts []*toshl.Account) map[string]*toshl.Account {
 	var exp = regexp.MustCompile(`^(?P<account>\d+) `)
 
 	var mapping = make(map[string]*toshl.Account)
 	for _, account := range accounts {
 		name := account.Name
 		result := extractFieldsStringWithRegexp(name, exp)
+		fmt.Printf("name: %s - result: %s\n", name, result)
 		if num, ok := result["account"]; ok {
-			mapping[num] = &account
+			mapping[num] = account
 		}
 	}
 
@@ -386,7 +387,9 @@ func main() {
 
 	mappableAccounts := getMappableAccounts(accounts)
 
-	log.Printf("Mappable accounts: %+v", mappableAccounts)
+	for name, account := range mappableAccounts {
+		log.Printf("Mappable accounts: [%s] : %+v", name, account)
+	}
 
 	CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
 

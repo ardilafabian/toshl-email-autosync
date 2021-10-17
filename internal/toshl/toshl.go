@@ -17,7 +17,7 @@ type Category struct {
 }
 
 type ApiClient interface {
-	GetAccounts() ([]Account, error)
+	GetAccounts() ([]*Account, error)
 	CreateEntry(entry *Entry) error
 	GetCategories() ([]Category, error)
 	CreateCategory(category *Category) error
@@ -60,15 +60,15 @@ func (c clientImpl) CreateEntry(entry *Entry) error {
 	return nil
 }
 
-func (c clientImpl) GetAccounts() ([]Account, error) {
+func (c clientImpl) GetAccounts() ([]*Account, error) {
 	accounts, err := c.client.Accounts(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var nAccounts []Account
+	var nAccounts []*Account
 	for _, account := range accounts {
-		nAccount := Account{account}
+		nAccount := &Account{account}
 		nAccounts = append(nAccounts, nAccount)
 	}
 
