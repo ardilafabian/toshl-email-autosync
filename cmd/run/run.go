@@ -7,7 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/Philanthropists/toshl-email-autosync/internal/mail/imap"
+	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
 	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,7 +19,7 @@ import (
 	"github.com/Philanthropists/toshl-email-autosync/internal/market/rapidapi"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl_helper"
 
-	"github.com/Philanthropists/toshl-go"
+	toshlclient "github.com/Philanthropists/toshl-go"
 )
 
 // func getMail() {
@@ -39,6 +41,16 @@ import (
 // 		fmt.Println(msg)
 // 	}
 // }
+
+var localLocation *time.Location
+
+func init() {
+	var err error
+	localLocation, err = time.LoadLocation("America/Bogota")
+	if err != nil {
+		panic(err)
+	}
+}
 
 //go:embed .auth.json
 var rawAuth []byte
@@ -96,9 +108,9 @@ func GetInvestmentFunds() {
 	log.Printf("%+v", fund)
 }
 
-func GetToshlInfo() {
+func GetToshlAccounts() {
 	token := toshl_helper.GetDefaultToshlToken()
-	client := toshl.NewClient(token, nil)
+	client := toshlclient.NewClient(token, nil)
 
 	accounts, err := client.Accounts(nil)
 	if err != nil {
@@ -144,11 +156,6 @@ func GetLastProcessedDate() time.Time {
 func GetEmailFromBancolombia(mailClient imap.MailClient) ([]imap.Message, error) {
 	const inboxMailbox = "INBOX"
 
-	// mailboxes, err := mailClient.GetMailBoxes()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	since := GetLastProcessedDate()
 	messages, err := mailClient.GetMessages(inboxMailbox, since, filterFnc)
 	if err != nil {
@@ -159,7 +166,7 @@ func GetEmailFromBancolombia(mailClient imap.MailClient) ([]imap.Message, error)
 }
 
 type Currency struct {
-	toshl.Currency
+	toshlclient.Currency
 }
 
 type TransactionInfo struct {
@@ -177,16 +184,20 @@ var regexpMap = map[string]*regexp.Regexp{
 	"Transferencia": regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) desde cta \*(?P<account>\d{4}).+(?P<place>\d{16})\.`),
 }
 
-func ExtractTransactionInfoFromMessages(msgs []imap.Message) ([]*TransactionInfo, error) {
+func ExtractTransactionInfoFromMessages(msgs []imap.Message) ([]*TransactionInfo, int64, error) {
+	var failures int64
+
 	var transactions []*TransactionInfo
 	for _, msg := range msgs {
 		t, err := extractTransactionInfoFromMessage(msg)
 		if err == nil {
 			transactions = append(transactions, t)
+		} else {
+			failures++
 		}
 	}
 
-	return transactions, nil
+	return transactions, failures, nil
 }
 
 func extractTransactionInfoFromMessage(msg imap.Message) (*TransactionInfo, error) {
@@ -227,7 +238,7 @@ func extractFieldsStringWithRegexp(s string, r *regexp.Regexp) map[string]string
 	match := r.FindStringSubmatch(s)
 	result := make(map[string]string)
 	for i, name := range r.SubexpNames() {
-		if i != 0 && name != "" {
+		if i != 0 && name != "" && i < len(match) {
 			result[name] = match[i]
 		}
 	}
@@ -261,7 +272,7 @@ func getValueFromText(s string) (Currency, error) {
 
 	var currency Currency
 	currency.Code = "COP"
-	currency.Rate = value
+	currency.Rate = &value
 
 	return currency, err
 }
@@ -289,6 +300,47 @@ func getOptions() Options {
 	return options
 }
 
+func getMappableAccounts(accounts []toshl.Account) map[string]*toshl.Account {
+	var exp = regexp.MustCompile(`^(?P<account>\d+) `)
+
+	var mapping = make(map[string]*toshl.Account)
+	for _, account := range accounts {
+		name := account.Name
+		result := extractFieldsStringWithRegexp(name, exp)
+		if num, ok := result["account"]; ok {
+			mapping[num] = &account
+		}
+	}
+
+	return mapping
+}
+
+func createInternalCategoryIfAbsent(toshlClient toshl.ApiClient) string {
+	const categoryName = "PENDING"
+
+	categories, err := toshlClient.GetCategories()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, c := range categories {
+		if c.Name == categoryName {
+			return c.ID
+		}
+	}
+
+	var cat toshl.Category
+	cat.Name = categoryName
+	cat.Type = "expense"
+
+	err = toshlClient.CreateCategory(&cat)
+	if err != nil {
+		panic(err)
+	}
+
+	return cat.ID
+}
+
 func main() {
 	_ = getOptions()
 
@@ -304,9 +356,90 @@ func main() {
 		panic(err)
 	}
 
-	transactions, _ := ExtractTransactionInfoFromMessages(msgs)
+	transactions, failures, _ := ExtractTransactionInfoFromMessages(msgs)
+
+	if failures > 0 {
+		log.Printf("Had %d failures on extracting information from messages", failures)
+	}
+
+	if len(transactions) == 0 {
+		log.Printf("no transactions to process, exiting ... ")
+		os.Exit(0)
+	}
 
 	for _, t := range transactions {
 		log.Printf("%+v", t)
+	}
+
+	token := toshl_helper.GetDefaultToshlToken()
+	toshlClient := toshl.NewApiClient(token)
+	internalCategoryId := createInternalCategoryIfAbsent(toshlClient)
+
+	accounts, err := toshlClient.GetAccounts()
+	if err != nil {
+		panic(err)
+	}
+
+	for _, a := range accounts {
+		log.Printf("Accounts %+v", a)
+	}
+
+	mappableAccounts := getMappableAccounts(accounts)
+
+	log.Printf("Mappable accounts: %+v", mappableAccounts)
+
+	CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
+
+	const archivedMailbox = "[Gmail]/All Mail"
+	mailboxes, err := mailClient.GetMailBoxes()
+	if err == nil {
+		found := false
+		for _, mailbox := range mailboxes {
+			if mailbox == archivedMailbox {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			panic("archive mailbox not found " + archivedMailbox)
+		}
+	}
+
+	var msgsIds []uint32
+	for _, t := range transactions {
+		msgsIds = append(msgsIds, t.MsgId)
+	}
+	err = mailClient.Move(msgsIds, archivedMailbox)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo, mappableAccounts map[string]*toshl.Account, internalCategoryId string) {
+	const DateFormat = "2006-01-02"
+	for _, t := range transactions {
+		account, ok := mappableAccounts[t.Account]
+		if !ok {
+			continue
+		}
+
+		var newEntry toshl.Entry
+		newEntry.Amount = -*t.Value.Rate // negative because it is an expense
+		newEntry.Currency = toshlclient.Currency{
+			Code: "COP",
+		}
+		newEntry.Date = t.Date.In(localLocation).Format(DateFormat)
+		description := fmt.Sprintf("** %s de %s", t.Type, t.Place)
+		newEntry.Description = &description
+		newEntry.Account = account.ID
+		newEntry.Category = internalCategoryId
+
+		err := toshlClient.CreateEntry(&newEntry)
+		if err != nil {
+			log.Printf("Failed to create entry for transaction [%+v | %+v]: %s\n", newEntry, t, err)
+		} else {
+			log.Printf("Created entry %+v sucessfully", newEntry)
+		}
 	}
 }

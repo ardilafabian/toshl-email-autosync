@@ -3,7 +3,7 @@ module github.com/Philanthropists/toshl-email-autosync
 go 1.17
 
 require (
-	github.com/Philanthropists/toshl-go v0.1.0
+	github.com/Philanthropists/toshl-go v0.1.9
 	github.com/emersion/go-imap v1.2.0
 	github.com/emersion/go-message v0.15.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible

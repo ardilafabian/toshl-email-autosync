@@ -25,7 +25,7 @@ type Filter func(message Message) bool
 type MailClient interface {
 	GetMailBoxes() ([]Mailbox, error)
 	GetMessages(mailbox Mailbox, since time.Time, filter Filter) ([]Message, error)
-	Move(messages []Message, destMailbox Mailbox) error
+	Move(messagesIds []uint32, destMailbox Mailbox) error
 	Logout() error
 }
 
@@ -186,8 +186,17 @@ func getMessageBody(_msg *_imap.Message) ([]byte, error) {
 	return body, nil
 }
 
-func (m mailClientImpl) Move(messages []Message, destMailbox Mailbox) error {
-	panic("implement me")
+func (m mailClientImpl) Move(ids []uint32, destMailbox Mailbox) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	seqset := new(_imap.SeqSet)
+	seqset.AddNum(ids...)
+
+	err := m.client.Move(seqset, string(destMailbox))
+
+	return err
 }
 
 func (m mailClientImpl) Logout() error {
