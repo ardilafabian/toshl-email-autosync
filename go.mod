@@ -4,6 +4,9 @@ go 1.17
 
 require (
 	github.com/Philanthropists/toshl-go v0.1.9
+	github.com/aws/aws-sdk-go-v2 v1.9.2
+	github.com/aws/aws-sdk-go-v2/config v1.8.3
+	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.5.2
 	github.com/emersion/go-imap v1.2.0
 	github.com/emersion/go-message v0.15.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -14,11 +17,22 @@ require (
 
 require (
 	cloud.google.com/go v0.94.1 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.4.3 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.6.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.0.6 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.2.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.3.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.1.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.3.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.4.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.7.2 // indirect
+	github.com/aws/smithy-go v1.8.0 // indirect
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21 // indirect
 	github.com/emersion/go-textwrapper v0.0.0-20200911093747-65d896831594 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420 // indirect
 	golang.org/x/sys v0.0.0-20210917161153-d61c044b1678 // indirect

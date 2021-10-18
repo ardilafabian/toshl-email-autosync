@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Philanthropists/toshl-email-autosync/internal/dynamodb"
 	"github.com/Philanthropists/toshl-email-autosync/internal/mail/imap"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
 	"log"
@@ -149,8 +150,36 @@ var filterFnc imap.Filter = func(msg imap.Message) bool {
 }
 
 func GetLastProcessedDate() time.Time {
-	// TODO get date from DynamoDB
-	return time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+	const dateField = "LastProcessedDate"
+	const tableName = "toshl-data"
+	defaultDate := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+
+	var selectedDate time.Time
+
+	client := dynamodb.NewClient("us-east-1")
+
+	res, err := client.Scan(tableName)
+	if err != nil {
+		selectedDate = defaultDate
+		log.Printf("connect to dynamodb unsuccessfull: %s\n", err)
+	} else if len(res) == 1 {
+		resValue := res[0]
+		value := resValue[dateField]
+		switch j := value.(type) {
+		case string:
+			selectedDate, err = time.Parse(time.RFC822Z, j)
+			if err != nil {
+				selectedDate = defaultDate
+			}
+		}
+	} else {
+		selectedDate = defaultDate
+		log.Printf("something is wrong, the len was not 1: [%+v]", res)
+	}
+
+	log.Printf("Selected date: %s", selectedDate.Format(time.RFC822Z))
+
+	return selectedDate
 }
 
 func GetEmailFromBancolombia(mailClient imap.MailClient) ([]imap.Message, error) {
