@@ -420,7 +420,7 @@ func main() {
 		log.Printf("Mappable accounts: [%s] : %+v", name, account)
 	}
 
-	CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
+	successfulTransactions := CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
 
 	const archivedMailbox = "[Gmail]/All Mail"
 	mailboxes, err := mailClient.GetMailBoxes()
@@ -439,7 +439,7 @@ func main() {
 	}
 
 	var msgsIds []uint32
-	for _, t := range transactions {
+	for _, t := range successfulTransactions {
 		msgsIds = append(msgsIds, t.MsgId)
 	}
 	err = mailClient.Move(msgsIds, archivedMailbox)
@@ -448,8 +448,10 @@ func main() {
 	}
 }
 
-func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo, mappableAccounts map[string]*toshl.Account, internalCategoryId string) {
+func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo, mappableAccounts map[string]*toshl.Account, internalCategoryId string) []*TransactionInfo {
 	const DateFormat = "2006-01-02"
+
+	var successfulTransactions []*TransactionInfo
 	for _, t := range transactions {
 		account, ok := mappableAccounts[t.Account]
 		if !ok {
@@ -472,6 +474,9 @@ func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo,
 			log.Printf("Failed to create entry for transaction [%+v | %+v]: %s\n", newEntry, t, err)
 		} else {
 			log.Printf("Created entry %+v sucessfully", newEntry)
+			successfulTransactions = append(successfulTransactions, t)
 		}
 	}
+
+	return successfulTransactions
 }
