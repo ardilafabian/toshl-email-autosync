@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"log"
 )
 
 type AttributeValue struct {
@@ -16,21 +15,45 @@ type AttributeValue struct {
 type Client interface {
 	Scan(tableName string) ([]map[string]interface{}, error)
 	GetItem(tableName string, key map[string]AttributeValue) (map[string]interface{}, error)
+	UpdateItem(tableName string, key map[string]AttributeValue, expressionAttributeValues map[string]AttributeValue, updateExpression string) error
 }
 
-func NewClient(region string) Client {
+func NewClient(region string) (Client, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(region))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	return &dynamodbClientImpl{
 		cfg: cfg,
-	}
+	}, nil
 }
 
 type dynamodbClientImpl struct {
 	cfg aws.Config
+}
+
+func (d *dynamodbClientImpl) UpdateItem(tableName string, key map[string]AttributeValue, expressionAttributeValues map[string]AttributeValue, updateExpression string) error {
+	ctx := context.TODO()
+	dynamo := dynamodb.NewFromConfig(d.cfg)
+
+	keyConv := convertAttributeValueToAwsType(key)
+	expressionAttributeValuesConv := convertAttributeValueToAwsType(expressionAttributeValues)
+
+	params := &dynamodb.UpdateItemInput{
+		Key:                       keyConv,
+		ExpressionAttributeValues: expressionAttributeValuesConv,
+		TableName:                 aws.String(tableName),
+		ReturnValues:              types.ReturnValueUpdatedNew,
+		UpdateExpression:          aws.String(updateExpression),
+	}
+
+	_, err := dynamo.UpdateItem(ctx, params)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (d *dynamodbClientImpl) Scan(tableName string) ([]map[string]interface{}, error) {
@@ -50,7 +73,6 @@ func (d *dynamodbClientImpl) Scan(tableName string) ([]map[string]interface{}, e
 	for _, val := range res.Items {
 		valConv := make(map[string]interface{})
 		for k, v := range val {
-			log.Printf("blabla %s -> %+v\n", k, v)
 			valConv[k] = convertType(v)
 		}
 		resConv = append(resConv, valConv)
@@ -63,10 +85,7 @@ func (d *dynamodbClientImpl) GetItem(tableName string, key map[string]AttributeV
 	ctx := context.TODO()
 	dynamo := dynamodb.NewFromConfig(d.cfg)
 
-	keyConv := make(map[string]types.AttributeValue)
-	for k, v := range key {
-		keyConv[k] = v.AttributeValue
-	}
+	keyConv := convertAttributeValueToAwsType(key)
 
 	params := &dynamodb.GetItemInput{
 		Key:       keyConv,
@@ -84,6 +103,14 @@ func (d *dynamodbClientImpl) GetItem(tableName string, key map[string]AttributeV
 	}
 
 	return resConv, nil
+}
+
+func convertAttributeValueToAwsType(key map[string]AttributeValue) map[string]types.AttributeValue {
+	keyConv := make(map[string]types.AttributeValue)
+	for k, v := range key {
+		keyConv[k] = v.AttributeValue
+	}
+	return keyConv
 }
 
 func convertType(i interface{}) interface{} {

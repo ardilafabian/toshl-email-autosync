@@ -9,6 +9,7 @@ import (
 	"github.com/Philanthropists/toshl-email-autosync/internal/dynamodb"
 	"github.com/Philanthropists/toshl-email-autosync/internal/mail/imap"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"log"
 	"os"
 	"regexp"
@@ -152,11 +153,14 @@ var filterFnc imap.Filter = func(msg imap.Message) bool {
 func GetLastProcessedDate() time.Time {
 	const dateField = "LastProcessedDate"
 	const tableName = "toshl-data"
-	defaultDate := time.Date(2021, time.September, 1, 0, 0, 0, 0, time.UTC)
+	defaultDate := time.Now().Add(-365 * 24 * time.Hour) // from 1 year in the past by default
 
 	var selectedDate time.Time
 
-	client := dynamodb.NewClient("us-east-1")
+	client, err := dynamodb.NewClient("us-east-1")
+	if err != nil {
+		log.Fatalf("error creating dynamodb client: %s", err)
+	}
 
 	res, err := client.Scan(tableName)
 	if err != nil {
@@ -164,20 +168,25 @@ func GetLastProcessedDate() time.Time {
 		log.Printf("connect to dynamodb unsuccessfull: %s\n", err)
 	} else if len(res) == 1 {
 		resValue := res[0]
-		value := resValue[dateField]
-		switch j := value.(type) {
-		case string:
-			selectedDate, err = time.Parse(time.RFC822Z, j)
-			if err != nil {
-				selectedDate = defaultDate
+		value, ok := resValue[dateField]
+		if ok {
+			switch j := value.(type) {
+			case string:
+				selectedDate, err = time.Parse(time.RFC822Z, j)
+				if err != nil {
+					selectedDate = defaultDate
+				}
 			}
+		} else {
+			selectedDate = defaultDate
+			log.Printf("%s field is not defined in item", dateField)
 		}
 	} else {
 		selectedDate = defaultDate
 		log.Printf("something is wrong, the len was not 1: [%+v]", res)
 	}
 
-	log.Printf("Selected date: %s", selectedDate.Format(time.RFC822Z))
+	log.Printf("selected date: %s", selectedDate.Format(time.RFC822Z))
 
 	return selectedDate
 }
@@ -420,8 +429,63 @@ func main() {
 		log.Printf("Mappable accounts: [%s] : %+v", name, account)
 	}
 
-	successfulTransactions := CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
+	successfulTxs, failedTxs := CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
 
+	ArchiveEmailsOfSuccessfulTransactions(mailClient, successfulTxs)
+
+	if err := UpdateLastProcessedDate(failedTxs); err != nil {
+		log.Printf("Failed to update last processed date: %s", err)
+	}
+}
+
+func UpdateLastProcessedDate(failedTxs []*TransactionInfo) error {
+	newDate := getEarliestDateFromTxs(failedTxs)
+
+	const idField = "Id"
+	const dateField = "LastProcessedDate"
+	const tableName = "toshl-data"
+
+	client, err := dynamodb.NewClient("us-east-1")
+	if err != nil {
+		log.Fatalf("error creating dynamodb client: %s", err)
+	}
+
+	// lastProcessedDate := GetLastProcessedDate()
+
+	key := map[string]dynamodb.AttributeValue{
+		idField: {
+			AttributeValue: &types.AttributeValueMemberN{Value: "1"},
+		},
+		// dateField: {
+		// 	AttributeValue: &types.AttributeValueMemberS{Value: lastProcessedDate.Format(time.RFC822Z)},
+		// },
+	}
+
+	expressionAttributeValues := map[string]dynamodb.AttributeValue{
+		":r": {
+			AttributeValue: &types.AttributeValueMemberS{Value: newDate.Format(time.RFC822Z)},
+		},
+	}
+
+	updateExpression := fmt.Sprintf("set %s = :r", dateField)
+
+	err = client.UpdateItem(tableName, key, expressionAttributeValues, updateExpression)
+	return err
+}
+
+func getEarliestDateFromTxs(txs []*TransactionInfo) time.Time {
+	earliestDate := time.Now().Add(-24 * time.Hour)
+	for _, tx := range txs {
+		date := tx.Date
+		if date.Before(earliestDate) {
+			earliestDate = date
+		}
+	}
+
+	return earliestDate
+}
+
+func ArchiveEmailsOfSuccessfulTransactions(mailClient imap.MailClient, successfulTransactions []*TransactionInfo) {
 	const archivedMailbox = "[Gmail]/All Mail"
 	mailboxes, err := mailClient.GetMailBoxes()
 	if err == nil {
@@ -448,10 +512,11 @@ func main() {
 	}
 }
 
-func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo, mappableAccounts map[string]*toshl.Account, internalCategoryId string) []*TransactionInfo {
+func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo, mappableAccounts map[string]*toshl.Account, internalCategoryId string) ([]*TransactionInfo, []*TransactionInfo) {
 	const DateFormat = "2006-01-02"
 
 	var successfulTransactions []*TransactionInfo
+	var failedTransactions []*TransactionInfo
 	for _, t := range transactions {
 		account, ok := mappableAccounts[t.Account]
 		if !ok {
@@ -472,11 +537,12 @@ func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo,
 		err := toshlClient.CreateEntry(&newEntry)
 		if err != nil {
 			log.Printf("Failed to create entry for transaction [%+v | %+v]: %s\n", newEntry, t, err)
+			failedTransactions = append(failedTransactions, t)
 		} else {
 			log.Printf("Created entry %+v sucessfully", newEntry)
 			successfulTransactions = append(successfulTransactions, t)
 		}
 	}
 
-	return successfulTransactions
+	return successfulTransactions, failedTransactions
 }
