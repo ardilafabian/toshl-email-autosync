@@ -139,10 +139,11 @@ var filterFnc imap.Filter = func(msg imap.Message) bool {
 
 	if keep {
 		text := string(msg.RawBody)
+		lowerCaseText := strings.ToLower(text)
 
-		shouldProcess := strings.Contains(text, "Pago")
-		shouldProcess = shouldProcess || strings.Contains(text, "Compra")
-		shouldProcess = shouldProcess || strings.Contains(text, "Transferencia")
+		shouldProcess := strings.Contains(lowerCaseText, "pago")
+		shouldProcess = shouldProcess || strings.Contains(lowerCaseText, "compra")
+		shouldProcess = shouldProcess || strings.Contains(lowerCaseText, "transferencia")
 
 		keep = shouldProcess
 	}
@@ -217,9 +218,9 @@ type TransactionInfo struct {
 }
 
 var regexpMap = map[string]*regexp.Regexp{
-	"Pago":          regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) a (?P<place>.+) desde cta \*(?P<account>\d{4})\.`),
-	"Compra":        regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) en (?P<place>.+)\..+T\.Cred \*(?P<account>\d{4})\.`),
-	"Transferencia": regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) desde cta \*(?P<account>\d{4}).+(?P<place>\d{16})\.`),
+	"pago":          regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) a (?P<place>.+) desde cta \*(?P<account>\d{4})\.`),
+	"compra":        regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) en (?P<place>.+)\..+T\.Cred \*(?P<account>\d{4})\.`),
+	"transferencia": regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) desde cta \*(?P<account>\d{4}).+(?P<place>\d{16})\.`),
 }
 
 func ExtractTransactionInfoFromMessages(msgs []imap.Message) ([]*TransactionInfo, int64, error) {
@@ -231,6 +232,7 @@ func ExtractTransactionInfoFromMessages(msgs []imap.Message) ([]*TransactionInfo
 		if err == nil {
 			transactions = append(transactions, t)
 		} else {
+			log.Printf("Error processing message: %s", err)
 			failures++
 		}
 	}
@@ -240,10 +242,11 @@ func ExtractTransactionInfoFromMessages(msgs []imap.Message) ([]*TransactionInfo
 
 func extractTransactionInfoFromMessage(msg imap.Message) (*TransactionInfo, error) {
 	text := string(msg.RawBody)
+	lowerCaseText := strings.ToLower(text)
 
 	var selected string
 	for key := range regexpMap {
-		if strings.Contains(text, key) {
+		if strings.Contains(lowerCaseText, key) {
 			selected = key
 			break
 		}
@@ -256,6 +259,8 @@ func extractTransactionInfoFromMessage(msg imap.Message) (*TransactionInfo, erro
 	selectedRegexp := regexpMap[selected]
 
 	result := extractFieldsStringWithRegexp(text, selectedRegexp)
+
+	log.Printf("Values: %+v\n", result)
 
 	value, err := getValueFromText(result["value"])
 	if err != nil {
