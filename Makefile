@@ -1,6 +1,7 @@
 .PHONY: build
 build: bin vendor fmt
 	go build -o bin cmd/run/run.go
+	go build -o bin cmd/aws-lambda/main.go
 
 bin:
 	mkdir -p bin

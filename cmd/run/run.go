@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
@@ -89,5 +90,5 @@ func getOptions() Options {
 func main() {
 	_ = getOptions()
 
-	sync.Run()
+	sync.Run(context.Background())
 }

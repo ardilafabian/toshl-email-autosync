@@ -1,12 +1,12 @@
 package sync
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -394,17 +394,17 @@ func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo,
 	return successfulTransactions, failedTransactions
 }
 
-func Run() {
+func Run(ctx context.Context) error {
 	getAuth()
 	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer mailClient.Logout()
 
 	msgs, err := GetEmailFromBancolombia(mailClient)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	transactions, failures, _ := ExtractTransactionInfoFromMessages(msgs)
@@ -415,7 +415,7 @@ func Run() {
 
 	if len(transactions) == 0 {
 		log.Printf("no transactions to process, exiting ... ")
-		os.Exit(0)
+		return nil
 	}
 
 	for _, t := range transactions {
@@ -428,7 +428,7 @@ func Run() {
 
 	accounts, err := toshlClient.GetAccounts()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	for _, a := range accounts {
@@ -446,6 +446,8 @@ func Run() {
 	ArchiveEmailsOfSuccessfulTransactions(mailClient, successfulTxs)
 
 	if err := UpdateLastProcessedDate(failedTxs); err != nil {
-		log.Printf("Failed to update last processed date: %s", err)
+		return fmt.Errorf("failed to update last processed date: %s", err)
 	}
+
+	return nil
 }
