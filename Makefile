@@ -5,8 +5,8 @@ build: bin vendor fmt
 	cp credentials.json bin/
 
 build-for-lambda: bin vendor fmt
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin cmd/run/run.go
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin cmd/aws-lambda/main.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin cmd/run/run.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin cmd/aws-lambda/main.go
 	cp credentials.json bin/
 
 bin:
