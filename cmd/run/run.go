@@ -2,17 +2,21 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
+	"io"
 	"log"
+	"os"
 
 	"github.com/Philanthropists/toshl-email-autosync/internal/market/investment-fund/bancolombia"
 	"github.com/Philanthropists/toshl-email-autosync/internal/market/rapidapi"
-	"github.com/Philanthropists/toshl-email-autosync/internal/toshl_helper"
 
 	toshlclient "github.com/Philanthropists/toshl-go"
 )
+
+const credentialsFile = "credentials.json"
 
 func GetStock() {
 	api := rapidapi.RapidAPI{}
@@ -59,9 +63,8 @@ func GetInvestmentFunds() {
 	log.Printf("%+v", fund)
 }
 
-func GetToshlAccounts() {
-	token := toshl_helper.GetDefaultToshlToken()
-	client := toshlclient.NewClient(token, nil)
+func GetToshlAccounts(auth sync.Auth) {
+	client := toshlclient.NewClient(auth.ToshlToken, nil)
 
 	accounts, err := client.Accounts(nil)
 	if err != nil {
@@ -87,8 +90,34 @@ func getOptions() Options {
 	return options
 }
 
+func getAuth() (sync.Auth, error) {
+	credFile, err := os.Open(credentialsFile)
+	if err != nil {
+		return sync.Auth{}, err
+	}
+	defer credFile.Close()
+
+	authBytes, err := io.ReadAll(credFile)
+	if err != nil {
+		return sync.Auth{}, err
+	}
+
+	var auth sync.Auth
+	err = json.Unmarshal(authBytes, &auth)
+	if err != nil {
+		return sync.Auth{}, err
+	}
+
+	return auth, nil
+}
+
 func main() {
 	_ = getOptions()
 
-	sync.Run(context.Background())
+	auth, err := getAuth()
+	if err != nil {
+		panic(err)
+	}
+
+	sync.Run(context.Background(), auth)
 }

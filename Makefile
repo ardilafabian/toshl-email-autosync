@@ -2,6 +2,7 @@
 build: bin vendor fmt
 	go build -o bin cmd/run/run.go
 	go build -o bin cmd/aws-lambda/main.go
+	cp credentials.json bin/
 
 bin:
 	mkdir -p bin
@@ -29,4 +30,4 @@ vendor: tidy
 
 .PHONY: clean
 clean:
-	rm -f bin/*
+	rm -rf bin/*

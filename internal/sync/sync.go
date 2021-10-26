@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -17,7 +16,6 @@ import (
 	"github.com/Philanthropists/toshl-email-autosync/internal/dynamodb"
 	"github.com/Philanthropists/toshl-email-autosync/internal/mail/imap"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
-	"github.com/Philanthropists/toshl-email-autosync/internal/toshl_helper"
 
 	toshlclient "github.com/Philanthropists/toshl-go"
 )
@@ -32,16 +30,12 @@ func init() {
 	}
 }
 
-//go:embed .auth.json
-var rawAuth []byte
-
 type Auth struct {
-	Addr     string `json:"addr"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Addr       string `json:"mail-addr"`
+	Username   string `json:"mail-username"`
+	Password   string `json:"mail-password"`
+	ToshlToken string `json:"toshl-token"`
 }
-
-var auth Auth
 
 var filterFnc imap.Filter = func(msg imap.Message) bool {
 	keep := true
@@ -241,13 +235,6 @@ func getValueFromText(s string) (Currency, error) {
 	return currency, err
 }
 
-func getAuth() {
-	err := json.Unmarshal(rawAuth, &auth)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func getMappableAccounts(accounts []*toshl.Account) map[string]*toshl.Account {
 	var exp = regexp.MustCompile(`^(?P<account>\d+) `)
 
@@ -394,8 +381,7 @@ func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo,
 	return successfulTransactions, failedTransactions
 }
 
-func Run(ctx context.Context) error {
-	getAuth()
+func Run(ctx context.Context, auth Auth) error {
 	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
 	if err != nil {
 		return err
@@ -422,8 +408,7 @@ func Run(ctx context.Context) error {
 		log.Printf("%+v", t)
 	}
 
-	token := toshl_helper.GetDefaultToshlToken()
-	toshlClient := toshl.NewApiClient(token)
+	toshlClient := toshl.NewApiClient(auth.ToshlToken)
 	internalCategoryId := createInternalCategoryIfAbsent(toshlClient)
 
 	accounts, err := toshlClient.GetAccounts()
