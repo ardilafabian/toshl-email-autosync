@@ -16,6 +16,7 @@ import (
 	"github.com/Philanthropists/toshl-email-autosync/internal/dynamodb"
 	"github.com/Philanthropists/toshl-email-autosync/internal/mail/imap"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
+	"github.com/Philanthropists/toshl-email-autosync/internal/twilio"
 
 	toshlclient "github.com/Philanthropists/toshl-go"
 )
@@ -31,10 +32,14 @@ func init() {
 }
 
 type Auth struct {
-	Addr       string `json:"mail-addr"`
-	Username   string `json:"mail-username"`
-	Password   string `json:"mail-password"`
-	ToshlToken string `json:"toshl-token"`
+	Addr             string `json:"mail-addr"`
+	Username         string `json:"mail-username"`
+	Password         string `json:"mail-password"`
+	ToshlToken       string `json:"toshl-token"`
+	TwilioAccountSid string `json:"twilio-account-sid"`
+	TwilioAuthToken  string `json:"twilio-auth-token"`
+	TwilioFromNumber string `json:"twilio-from-number"`
+	TwilioToNumber   string `json:"twilio-to-number"`
 }
 
 var filterFnc imap.Filter = func(msg imap.Message) bool {
@@ -381,6 +386,25 @@ func CreateEntries(toshlClient toshl.ApiClient, transactions []*TransactionInfo,
 	return successfulTransactions, failedTransactions
 }
 
+func SendNotifications(auth Auth, msg string) {
+	accountSid := auth.TwilioAccountSid
+	authToken := auth.TwilioAuthToken
+	fromNumber := auth.TwilioFromNumber
+	toNumber := auth.TwilioToNumber
+
+	client, err := twilio.NewClient(accountSid, authToken)
+	if err != nil {
+		log.Printf("error: could not instantiate twilio client: %s", err)
+		return
+	}
+
+	_, err = client.SendSms(fromNumber, toNumber, msg)
+	if err != nil {
+		log.Printf("error: an error ocurred when sending notification sms")
+		return
+	}
+}
+
 func Run(ctx context.Context, auth Auth) error {
 	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
 	if err != nil {
@@ -429,6 +453,12 @@ func Run(ctx context.Context, auth Auth) error {
 	successfulTxs, failedTxs := CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
 
 	ArchiveEmailsOfSuccessfulTransactions(mailClient, successfulTxs)
+
+	msg := fmt.Sprintf("Synced transactions: %d sucessful - %d failed", len(successfulTxs), len(failedTxs))
+	log.Println(msg)
+	if len(successfulTxs) > 0 {
+		SendNotifications(auth, msg)
+	}
 
 	if err := UpdateLastProcessedDate(failedTxs); err != nil {
 		return fmt.Errorf("failed to update last processed date: %s", err)
