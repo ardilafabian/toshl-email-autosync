@@ -139,7 +139,7 @@ type TransactionInfo struct {
 
 var regexpMap = map[string]*regexp.Regexp{
 	"pago":          regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) a (?P<place>.+) desde cta \*(?P<account>\d{4})\.`),
-	"compra":        regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) en (?P<place>.+)\..+T\.Cred \*(?P<account>\d{4})\.`),
+	"compra":        regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) en (?P<place>.+)\..+T\.(?:Cred|Deb) \*(?P<account>\d{4})\.`),
 	"transferencia": regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) desde cta \*(?P<account>\d{4}).+(?P<place>\d{16})\.`),
 }
 
@@ -266,7 +266,6 @@ func getMappableAccounts(accounts []*toshl.Account) map[string]*toshl.Account {
 	for _, account := range accounts {
 		name := account.Name
 		result := extractFieldsStringWithRegexp(name, exp)
-		fmt.Printf("name: %s - result: %s\n", name, result)
 		if num, ok := result["account"]; ok {
 			mapping[num] = account
 		}
