@@ -456,7 +456,7 @@ func Run(ctx context.Context, auth Auth) error {
 
 	msg := fmt.Sprintf("Synced transactions: %d sucessful - %d failed", len(successfulTxs), len(failedTxs))
 	log.Println(msg)
-	if len(successfulTxs) > 0 {
+	if len(successfulTxs) > 0 && auth.TwilioAccountSid != "" {
 		SendNotifications(auth, msg)
 	}
 
