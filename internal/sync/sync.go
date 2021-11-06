@@ -260,14 +260,21 @@ func getValueFromText(s string) (Currency, error) {
 }
 
 func getMappableAccounts(accounts []*toshl.Account) map[string]*toshl.Account {
-	var exp = regexp.MustCompile(`^(?P<account>\d+) `)
+	var exp = regexp.MustCompile(`^(?P<accounts>[0-9\s]+) `)
 
 	var mapping = make(map[string]*toshl.Account)
 	for _, account := range accounts {
 		name := account.Name
 		result := extractFieldsStringWithRegexp(name, exp)
-		if num, ok := result["account"]; ok {
-			mapping[num] = account
+		if accountNums, ok := result["accounts"]; ok {
+			nums := strings.Split(accountNums, " ")
+			for _, num := range nums {
+				mapping[num] = account
+			}
+
+			if len(nums) == 0 {
+				log.Printf("no account found for [%s]", name)
+			}
 		}
 	}
 
