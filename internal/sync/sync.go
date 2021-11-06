@@ -180,7 +180,9 @@ func extractTransactionInfoFromMessage(msg imap.Message) (*TransactionInfo, erro
 
 	result := extractFieldsStringWithRegexp(text, selectedRegexp)
 
-	log.Printf("Values: %+v\n", result)
+	if !containsAllRequiredFields(result) {
+		return nil, fmt.Errorf("message does not contain all required fields - result [%+v]", result)
+	}
 
 	value, err := getValueFromText(result["value"])
 	if err != nil {
@@ -195,6 +197,23 @@ func extractTransactionInfoFromMessage(msg imap.Message) (*TransactionInfo, erro
 		Account: result["account"],
 		Date:    msg.Envelope.Date,
 	}, nil
+}
+
+func containsAllRequiredFields(fields map[string]string) bool {
+	requiredFields := []string{"value", "type", "place", "account"}
+	requiredFieldsSet := map[string]struct{}{}
+	for _, field := range requiredFields {
+		requiredFieldsSet[field] = struct{}{}
+	}
+
+	for field := range requiredFieldsSet {
+		_, ok := fields[field]
+		if !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 func extractFieldsStringWithRegexp(s string, r *regexp.Regexp) map[string]string {
