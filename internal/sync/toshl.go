@@ -2,16 +2,17 @@ package sync
 
 import (
 	"fmt"
+	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
 	_toshl "github.com/Philanthropists/toshl-go"
-	"log"
 	"regexp"
 	"strings"
 )
 
 func GetMappableAccounts(accounts []*toshl.Account) map[string]*toshl.Account {
+	log := logger.GetLogger()
 	var exp = regexp.MustCompile(`^(?P<accounts>[0-9\s]+) `)
 
 	var mapping = make(map[string]*toshl.Account)
@@ -25,7 +26,8 @@ func GetMappableAccounts(accounts []*toshl.Account) map[string]*toshl.Account {
 			}
 
 			if len(nums) == 0 {
-				log.Printf("no account found for [%s]", name)
+				log.Warnw("no account found for name",
+					"name", name)
 			}
 		}
 	}
@@ -62,6 +64,8 @@ func CreateInternalCategoryIfAbsent(toshlClient toshl.ApiClient) string {
 func CreateEntries(toshlClient toshl.ApiClient, transactions []*types.TransactionInfo, mappableAccounts map[string]*toshl.Account, internalCategoryId string) ([]*types.TransactionInfo, []*types.TransactionInfo) {
 	const DateFormat = "2006-01-02"
 
+	log := logger.GetLogger()
+
 	var successfulTransactions []*types.TransactionInfo
 	var failedTransactions []*types.TransactionInfo
 	for _, t := range transactions {
@@ -83,10 +87,11 @@ func CreateEntries(toshlClient toshl.ApiClient, transactions []*types.Transactio
 
 		err := toshlClient.CreateEntry(&newEntry)
 		if err != nil {
-			log.Printf("Failed to create entry for transaction [%+v | %+v]: %s\n", newEntry, t, err)
+			log.Errorf("Failed to create entry for transaction [%+v | %+v]: %s\n", newEntry, t, err)
 			failedTransactions = append(failedTransactions, t)
 		} else {
-			log.Printf("Created entry %+v sucessfully", newEntry)
+			log.Infow("Created entry successfully",
+				"entry", newEntry)
 			successfulTransactions = append(successfulTransactions, t)
 		}
 	}

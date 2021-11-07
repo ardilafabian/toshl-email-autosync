@@ -1,12 +1,14 @@
 package sync
 
 import (
+	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/Philanthropists/toshl-email-autosync/internal/twilio"
-	"log"
 )
 
 func SendNotifications(auth types.Auth, msg string) {
+	log := logger.GetLogger()
+
 	accountSid := auth.TwilioAccountSid
 	authToken := auth.TwilioAuthToken
 	fromNumber := auth.TwilioFromNumber
@@ -14,13 +16,15 @@ func SendNotifications(auth types.Auth, msg string) {
 
 	client, err := twilio.NewClient(accountSid, authToken)
 	if err != nil {
-		log.Printf("error: could not instantiate twilio client: %s", err)
+		log.Errorw("could not instantiate twilio client",
+			"error", err)
 		return
 	}
 
 	_, err = client.SendSms(fromNumber, toNumber, msg)
 	if err != nil {
-		log.Printf("error: an error ocurred when sending notification sms")
+		log.Errorw("an error ocurred when sending notification sms",
+			"error", err)
 		return
 	}
 }

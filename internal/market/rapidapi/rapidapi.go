@@ -2,7 +2,6 @@ package rapidapi
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -33,8 +32,7 @@ type stockValue struct {
 func (api *RapidAPI) GetCredentialsFromFile(filename string) error {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
-		errMsg := fmt.Sprintf("Unable to read API keys from file: %v", err)
-		return errors.New(errMsg)
+		return fmt.Errorf("unable to read API keys from file: %w", err)
 	}
 
 	err = json.Unmarshal(b, &api.Header)

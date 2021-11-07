@@ -3,13 +3,14 @@ package sync
 import (
 	"fmt"
 	"github.com/Philanthropists/toshl-email-autosync/internal/dynamodb"
+	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 	synctypes "github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"log"
 	"time"
 )
 
 func GetLastProcessedDate() time.Time {
+	logger := logger.GetLogger()
 	const dateField = "LastProcessedDate"
 	const tableName = "toshl-data"
 	defaultDate := time.Now().Add(-365 * 24 * time.Hour) // from 1 year in the past by default
@@ -18,13 +19,15 @@ func GetLastProcessedDate() time.Time {
 
 	client, err := dynamodb.NewClient("us-east-1")
 	if err != nil {
-		log.Fatalf("error creating dynamodb client: %s", err)
+		logger.Fatalw("error creating dynamodb client",
+			"error", err)
 	}
 
 	res, err := client.Scan(tableName)
 	if err != nil {
 		selectedDate = defaultDate
-		log.Printf("connect to dynamodb unsuccessfull: %s\n", err)
+		logger.Errorw("connection to dynamodb as unsuccessful",
+			"error", err)
 	} else if len(res) == 1 {
 		resValue := res[0]
 		value, ok := resValue[dateField]
@@ -38,19 +41,23 @@ func GetLastProcessedDate() time.Time {
 			}
 		} else {
 			selectedDate = defaultDate
-			log.Printf("%s field is not defined in item", dateField)
+			logger.Warnw("field is not defined in dynamodb item",
+				"field", dateField)
 		}
 	} else {
 		selectedDate = defaultDate
-		log.Printf("something is wrong, the len was not 1: [%+v]", res)
+		logger.Warnw("something is wrong, the number of items retrieved was not 1",
+			"response", res)
 	}
 
-	log.Printf("selected date: %s", selectedDate.Format(time.RFC822Z))
+	logger.Infow("selected date",
+		"date", selectedDate.Format(time.RFC822Z))
 
 	return selectedDate
 }
 
 func UpdateLastProcessedDate(failedTxs []*synctypes.TransactionInfo) error {
+	logger := logger.GetLogger()
 	newDate := getEarliestDateFromTxs(failedTxs)
 
 	const idField = "Id"
@@ -59,7 +66,8 @@ func UpdateLastProcessedDate(failedTxs []*synctypes.TransactionInfo) error {
 
 	client, err := dynamodb.NewClient("us-east-1")
 	if err != nil {
-		log.Fatalf("error creating dynamodb client: %s", err)
+		logger.Fatalw("error creating dynamodb client",
+			"error", err)
 	}
 
 	key := map[string]dynamodb.AttributeValue{

@@ -3,12 +3,12 @@ package imap
 import (
 	"errors"
 	"github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap/types"
+	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 	_imap "github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
 	"io"
 	"io/ioutil"
-	"log"
 	"sync"
 	"time"
 )
@@ -58,6 +58,7 @@ func (m mailClientImpl) GetMailBoxes() ([]types.Mailbox, error) {
 }
 
 func (m mailClientImpl) GetMessages(mailbox types.Mailbox, since time.Time, filter types.Filter) ([]types.Message, error) {
+	logger := logger.GetLogger()
 	if filter == nil {
 		return nil, errors.New("filter function cannot be nil")
 	}
@@ -78,7 +79,8 @@ func (m mailClientImpl) GetMessages(mailbox types.Mailbox, since time.Time, filt
 		return nil, err
 	}
 
-	log.Println("Number of messages:", len(ids))
+	logger.Infow("Messages",
+		"len", len(ids))
 
 	seqset := new(_imap.SeqSet)
 	seqset.AddNum(ids...)

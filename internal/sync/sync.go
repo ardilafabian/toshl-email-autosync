@@ -3,8 +3,9 @@ package sync
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 
 	"github.com/Philanthropists/toshl-email-autosync/internal/bank/bancolombia"
 	synctypes "github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
@@ -25,6 +26,7 @@ func init() {
 }
 
 func ExtractTransactionInfoFromMessages(bank synctypes.BankDelegate, msgs []imaptypes.Message) ([]*synctypes.TransactionInfo, int64) {
+	log := logger.GetLogger()
 	var failures int64
 
 	var transactions []*synctypes.TransactionInfo
@@ -33,7 +35,8 @@ func ExtractTransactionInfoFromMessages(bank synctypes.BankDelegate, msgs []imap
 		if err == nil {
 			transactions = append(transactions, t)
 		} else {
-			log.Printf("Error processing message: %s", err)
+			log.Errorw("Error processing message",
+				"error", err)
 			failures++
 		}
 	}
@@ -54,6 +57,7 @@ func getEarliestDateFromTxs(txs []*synctypes.TransactionInfo) time.Time {
 }
 
 func Run(ctx context.Context, auth synctypes.Auth) error {
+	log := logger.GetLogger()
 	bank := bancolombia.Bancolombia{}
 
 	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
@@ -70,16 +74,19 @@ func Run(ctx context.Context, auth synctypes.Auth) error {
 	transactions, failures := ExtractTransactionInfoFromMessages(bank, msgs)
 
 	if failures > 0 {
-		log.Printf("Had %d failures on extracting information from messages", failures)
+		log.Infow("Had failures extracting information from messages",
+			"failures", failures,
+		)
 	}
 
 	if len(transactions) == 0 {
-		log.Printf("no transactions to process, exiting ... ")
+		log.Info("no transactions to process, exiting ... ")
 		return nil
 	}
 
-	for _, t := range transactions {
-		log.Printf("%+v", t)
+	log.Debug("Transactions to process")
+	for i, t := range transactions {
+		log.Debugf("%d: %+v", i, t)
 	}
 
 	toshlClient := toshl.NewApiClient(auth.ToshlToken)
@@ -90,22 +97,27 @@ func Run(ctx context.Context, auth synctypes.Auth) error {
 		return err
 	}
 
-	for _, a := range accounts {
-		log.Printf("Accounts %+v", a)
+	log.Debug("Account")
+	for i, a := range accounts {
+		log.Debugf("%d: %s", i, a.Name)
 	}
 
 	mappableAccounts := GetMappableAccounts(accounts)
 
+	log.Debug("Mappable accounts")
 	for name, account := range mappableAccounts {
-		log.Printf("Mappable accounts: [%s] : %+v", name, account)
+		log.Debugf("%s: %s", name, account.Name)
 	}
 
 	successfulTxs, failedTxs := CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
 
 	ArchiveEmailsOfSuccessfulTransactions(mailClient, successfulTxs)
 
-	msg := fmt.Sprintf("Synced transactions: %d sucessful - %d failed", len(successfulTxs), len(failedTxs))
-	log.Println(msg)
+	msg := fmt.Sprintf("Synced transactions: %d successful- %d failed", len(successfulTxs), len(failedTxs))
+	log.Infow("Synced transactions",
+		"successful", len(successfulTxs),
+		"failed", len(failedTxs),
+	)
 	if len(successfulTxs) > 0 && auth.TwilioAccountSid != "" {
 		SendNotifications(auth, msg)
 	}
