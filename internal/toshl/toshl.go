@@ -1,19 +1,19 @@
 package toshl
 
 import (
-	"github.com/Philanthropists/toshl-go"
+	_toshl "github.com/Philanthropists/toshl-go"
 )
 
 type Account struct {
-	toshl.Account
+	_toshl.Account
 }
 
 type Entry struct {
-	toshl.Entry
+	_toshl.Entry
 }
 
 type Category struct {
-	toshl.Category
+	_toshl.Category
 }
 
 type ApiClient interface {
@@ -24,11 +24,18 @@ type ApiClient interface {
 }
 
 func NewApiClient(token string) ApiClient {
-	return &clientImpl{client: toshl.NewClient(token, nil)}
+	return &clientImpl{client: _toshl.NewClient(token, nil)}
+}
+
+type toshlClient interface {
+	Categories(params *_toshl.CategoryQueryParams) ([]_toshl.Category, error)
+	Accounts(params *_toshl.AccountQueryParams) ([]_toshl.Account, error)
+	CreateCategory(category *_toshl.Category) error
+	CreateEntry(entry *_toshl.Entry) error
 }
 
 type clientImpl struct {
-	client *toshl.Client
+	client toshlClient
 }
 
 func (c clientImpl) GetCategories() ([]Category, error) {

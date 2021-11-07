@@ -2,6 +2,7 @@ package imap
 
 import (
 	"errors"
+	"github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap/types"
 	_imap "github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
@@ -12,20 +13,10 @@ import (
 	"time"
 )
 
-type Mailbox string
-
-type Message struct {
-	*_imap.Message
-
-	RawBody []byte
-}
-
-type Filter func(message Message) bool
-
 type MailClient interface {
-	GetMailBoxes() ([]Mailbox, error)
-	GetMessages(mailbox Mailbox, since time.Time, filter Filter) ([]Message, error)
-	Move(messagesIds []uint32, destMailbox Mailbox) error
+	GetMailBoxes() ([]types.Mailbox, error)
+	GetMessages(mailbox types.Mailbox, since time.Time, filter types.Filter) ([]types.Message, error)
+	Move(messagesIds []uint32, destMailbox types.Mailbox) error
 	Logout() error
 }
 
@@ -46,16 +37,16 @@ type mailClientImpl struct {
 	client *client.Client
 }
 
-func (m mailClientImpl) GetMailBoxes() ([]Mailbox, error) {
+func (m mailClientImpl) GetMailBoxes() ([]types.Mailbox, error) {
 	rawMailboxes := make(chan *_imap.MailboxInfo, 10)
 	done := make(chan error, 1)
 	go func() {
 		done <- m.client.List("", "*", rawMailboxes)
 	}()
 
-	var mailboxes []Mailbox
+	var mailboxes []types.Mailbox
 	for m := range rawMailboxes {
-		mailbox := Mailbox(m.Name)
+		mailbox := types.Mailbox(m.Name)
 		mailboxes = append(mailboxes, mailbox)
 	}
 
@@ -66,7 +57,7 @@ func (m mailClientImpl) GetMailBoxes() ([]Mailbox, error) {
 	return mailboxes, nil
 }
 
-func (m mailClientImpl) GetMessages(mailbox Mailbox, since time.Time, filter Filter) ([]Message, error) {
+func (m mailClientImpl) GetMessages(mailbox types.Mailbox, since time.Time, filter types.Filter) ([]types.Message, error) {
 	if filter == nil {
 		return nil, errors.New("filter function cannot be nil")
 	}
@@ -101,13 +92,13 @@ func (m mailClientImpl) GetMessages(mailbox Mailbox, since time.Time, filter Fil
 		done <- m.client.Fetch(seqset, items, messages)
 	}()
 
-	filteredMsgsChan := make(chan Message, 50)
+	filteredMsgsChan := make(chan types.Message, 50)
 
 	go func() {
 		processMultipleMessages(messages, filter, filteredMsgsChan)
 	}()
 
-	var filteredMsgs []Message
+	var filteredMsgs []types.Message
 	for msg := range filteredMsgsChan {
 		filteredMsgs = append(filteredMsgs, msg)
 	}
@@ -119,7 +110,7 @@ func (m mailClientImpl) GetMessages(mailbox Mailbox, since time.Time, filter Fil
 	return filteredMsgs, nil
 }
 
-func processMultipleMessages(messages <-chan *_imap.Message, filter Filter, outChan chan<- Message) {
+func processMultipleMessages(messages <-chan *_imap.Message, filter types.Filter, outChan chan<- types.Message) {
 	const concurrentRoutines = 20
 
 	var wg sync.WaitGroup
@@ -135,7 +126,7 @@ func processMultipleMessages(messages <-chan *_imap.Message, filter Filter, outC
 	close(outChan)
 }
 
-func processMessages(messages <-chan *_imap.Message, filter Filter, outChan chan<- Message) {
+func processMessages(messages <-chan *_imap.Message, filter types.Filter, outChan chan<- types.Message) {
 	for _msg := range messages {
 		msg, err := getCompleteMessage(_msg)
 		if err != nil {
@@ -148,13 +139,13 @@ func processMessages(messages <-chan *_imap.Message, filter Filter, outChan chan
 	}
 }
 
-func getCompleteMessage(_msg *_imap.Message) (Message, error) {
+func getCompleteMessage(_msg *_imap.Message) (types.Message, error) {
 	body, err := getMessageBody(_msg)
 	if err != nil {
-		return Message{}, err
+		return types.Message{}, err
 	}
 
-	return Message{
+	return types.Message{
 		Message: _msg,
 		RawBody: body,
 	}, nil
@@ -186,7 +177,7 @@ func getMessageBody(_msg *_imap.Message) ([]byte, error) {
 	return body, nil
 }
 
-func (m mailClientImpl) Move(ids []uint32, destMailbox Mailbox) error {
+func (m mailClientImpl) Move(ids []uint32, destMailbox types.Mailbox) error {
 	if len(ids) == 0 {
 		return nil
 	}

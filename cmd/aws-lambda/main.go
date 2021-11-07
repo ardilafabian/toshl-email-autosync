@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/aws/aws-lambda-go/lambda"
 	"io"
 	"os"
@@ -11,12 +12,12 @@ import (
 
 const credentialsFile = "credentials.json"
 
-func getAuth(rawAuth []byte) (sync.Auth, error) {
-	auth := sync.Auth{}
+func getAuth(rawAuth []byte) (types.Auth, error) {
+	auth := types.Auth{}
 
 	err := json.Unmarshal(rawAuth, &auth)
 	if err != nil {
-		return sync.Auth{}, err
+		return types.Auth{}, err
 	}
 
 	return auth, nil

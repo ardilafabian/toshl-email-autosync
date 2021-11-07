@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"io"
 	"log"
 	"os"
@@ -63,7 +64,7 @@ func GetInvestmentFunds() {
 	log.Printf("%+v", fund)
 }
 
-func GetToshlAccounts(auth sync.Auth) {
+func GetToshlAccounts(auth types.Auth) {
 	client := toshlclient.NewClient(auth.ToshlToken, nil)
 
 	accounts, err := client.Accounts(nil)
@@ -90,22 +91,22 @@ func getOptions() Options {
 	return options
 }
 
-func getAuth() (sync.Auth, error) {
+func getAuth() (types.Auth, error) {
 	credFile, err := os.Open(credentialsFile)
 	if err != nil {
-		return sync.Auth{}, err
+		return types.Auth{}, err
 	}
 	defer credFile.Close()
 
 	authBytes, err := io.ReadAll(credFile)
 	if err != nil {
-		return sync.Auth{}, err
+		return types.Auth{}, err
 	}
 
-	var auth sync.Auth
+	var auth types.Auth
 	err = json.Unmarshal(authBytes, &auth)
 	if err != nil {
-		return sync.Auth{}, err
+		return types.Auth{}, err
 	}
 
 	return auth, nil
