@@ -2,17 +2,30 @@ package sync
 
 import (
 	"github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap"
-	imaptypes "github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap/types"
 	synctypes "github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 )
 
-func GetEmailFromInbox(mailClient imap.MailClient, bank synctypes.BankDelegate) ([]imaptypes.Message, error) {
+func GetEmailFromInbox(mailClient imap.MailClient, banks []synctypes.BankDelegate) ([]synctypes.BankMessage, error) {
 	const inboxMailbox = "INBOX"
 
 	since := GetLastProcessedDate()
-	messages, err := mailClient.GetMessages(inboxMailbox, since, bank.FilterMessage)
-	if err != nil {
-		return nil, err
+
+	var messages []synctypes.BankMessage
+
+	for _, bank := range banks {
+		msgs, err := mailClient.GetMessages(inboxMailbox, since, bank.FilterMessage)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, msg := range msgs {
+			bankMsg := synctypes.BankMessage{
+				Message: msg,
+				Bank:    bank,
+			}
+
+			messages = append(messages, bankMsg)
+		}
 	}
 
 	return messages, nil

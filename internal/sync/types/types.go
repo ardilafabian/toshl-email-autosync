@@ -21,7 +21,14 @@ type Currency struct {
 	toshl.Currency
 }
 
+type BankMessage struct {
+	types.Message
+
+	Bank BankDelegate
+}
+
 type TransactionInfo struct {
+	Bank    BankDelegate
 	MsgId   uint32
 	Type    string
 	Place   string

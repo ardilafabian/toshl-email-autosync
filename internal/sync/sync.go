@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
-
-	"github.com/Philanthropists/toshl-email-autosync/internal/bank/bancolombia"
-	synctypes "github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
-
+	"github.com/Philanthropists/toshl-email-autosync/internal/bank"
 	"github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap"
-	imaptypes "github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap/types"
+	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
 )
 
@@ -25,19 +22,19 @@ func init() {
 	}
 }
 
-func ExtractTransactionInfoFromMessages(bank synctypes.BankDelegate, msgs []imaptypes.Message) ([]*synctypes.TransactionInfo, int64) {
+func ExtractTransactionInfoFromMessages(msgs []types.BankMessage) ([]*types.TransactionInfo, int64) {
 	log := logger.GetLogger()
 	var failures int64
 
-	var transactions []*synctypes.TransactionInfo
-	for _, msg := range msgs {
-		t, err := bank.ExtractTransactionInfoFromMessage(msg)
+	var transactions []*types.TransactionInfo
+	for _, bankMsg := range msgs {
+		t, err := bankMsg.Bank.ExtractTransactionInfoFromMessage(bankMsg.Message)
 		if err == nil {
 			transactions = append(transactions, t)
 		} else {
 			log.Errorw("Error processing message",
 				"error", err,
-				"msgId", msg.SeqNum,
+				"msgId", bankMsg.SeqNum,
 			)
 			failures++
 		}
@@ -46,7 +43,7 @@ func ExtractTransactionInfoFromMessages(bank synctypes.BankDelegate, msgs []imap
 	return transactions, failures
 }
 
-func getEarliestDateFromTxs(txs []*synctypes.TransactionInfo) time.Time {
+func getEarliestDateFromTxs(txs []*types.TransactionInfo) time.Time {
 	earliestDate := time.Now().Add(-24 * time.Hour)
 	for _, tx := range txs {
 		date := tx.Date
@@ -58,11 +55,11 @@ func getEarliestDateFromTxs(txs []*synctypes.TransactionInfo) time.Time {
 	return earliestDate
 }
 
-func Run(ctx context.Context, auth synctypes.Auth) error {
+func Run(ctx context.Context, auth types.Auth) error {
 	log := logger.GetLogger()
 	defer log.Sync()
 
-	bank := bancolombia.Bancolombia{}
+	banks := bank.GetBanks()
 
 	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)
 	if err != nil {
@@ -70,12 +67,12 @@ func Run(ctx context.Context, auth synctypes.Auth) error {
 	}
 	defer mailClient.Logout()
 
-	msgs, err := GetEmailFromInbox(mailClient, bank)
+	msgs, err := GetEmailFromInbox(mailClient, banks)
 	if err != nil {
 		return err
 	}
 
-	transactions, failures := ExtractTransactionInfoFromMessages(bank, msgs)
+	transactions, failures := ExtractTransactionInfoFromMessages(msgs)
 
 	if failures > 0 {
 		log.Infow("Had failures extracting information from messages",
