@@ -36,7 +36,9 @@ func ExtractTransactionInfoFromMessages(bank synctypes.BankDelegate, msgs []imap
 			transactions = append(transactions, t)
 		} else {
 			log.Errorw("Error processing message",
-				"error", err)
+				"error", err,
+				"msgId", msg.SeqNum,
+			)
 			failures++
 		}
 	}
@@ -115,12 +117,12 @@ func Run(ctx context.Context, auth synctypes.Auth) error {
 
 	ArchiveEmailsOfSuccessfulTransactions(mailClient, successfulTxs)
 
-	msg := fmt.Sprintf("Synced transactions: %d successful- %d failed", len(successfulTxs), len(failedTxs))
 	log.Infow("Synced transactions",
 		"successful", len(successfulTxs),
 		"failed", len(failedTxs),
 	)
 	if len(successfulTxs) > 0 && auth.TwilioAccountSid != "" {
+		msg := fmt.Sprintf("Synced transactions: %d successful- %d failed", len(successfulTxs), len(failedTxs))
 		SendNotifications(auth, msg)
 	}
 
