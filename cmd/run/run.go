@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"io"
 	"log"
@@ -18,6 +19,8 @@ import (
 )
 
 const credentialsFile = "credentials.json"
+
+var GitCommit string
 
 func GetStock() {
 	api := rapidapi.RapidAPI{}
@@ -113,6 +116,7 @@ func getAuth() (types.Auth, error) {
 }
 
 func main() {
+	common.PrintVersion(GitCommit)
 	_ = getOptions()
 
 	auth, err := getAuth()

@@ -1,6 +1,9 @@
 package common
 
-import "regexp"
+import (
+	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
+	"regexp"
+)
 
 func ExtractFieldsStringWithRegexp(s string, r *regexp.Regexp) map[string]string {
 	match := r.FindStringSubmatch(s)
@@ -29,4 +32,11 @@ func ContainsAllRequiredFields(fields map[string]string) bool {
 	}
 
 	return true
+}
+
+func PrintVersion(commit string) {
+	log := logger.GetLogger()
+	defer log.Sync()
+
+	log.Infof("Commit version: %s", commit)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/aws/aws-lambda-go/lambda"
 	"io"
@@ -11,6 +12,8 @@ import (
 )
 
 const credentialsFile = "credentials.json"
+
+var GitCommit string
 
 func getAuth(rawAuth []byte) (types.Auth, error) {
 	auth := types.Auth{}
@@ -24,6 +27,8 @@ func getAuth(rawAuth []byte) (types.Auth, error) {
 }
 
 func HandleRequest(ctx context.Context) error {
+	common.PrintVersion(GitCommit)
+
 	credFile, err := os.Open(credentialsFile)
 	if err != nil {
 		return err

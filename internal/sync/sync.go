@@ -59,6 +59,7 @@ func getEarliestDateFromTxs(txs []*synctypes.TransactionInfo) time.Time {
 func Run(ctx context.Context, auth synctypes.Auth) error {
 	log := logger.GetLogger()
 	defer log.Sync()
+
 	bank := bancolombia.Bancolombia{}
 
 	mailClient, err := imap.GetMailClient(auth.Addr, auth.Username, auth.Password)

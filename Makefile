@@ -1,11 +1,12 @@
+git-commit := $(shell git rev-list -1 HEAD)
+
 .PHONY: build
 build: bin vendor fmt
-	go build -o bin cmd/run/run.go
-	go build -o bin cmd/aws-lambda/main.go
+	go build -ldflags="-s -w -X main.GitCommit=${git-commit}" -o bin cmd/run/run.go
 	cp credentials.json bin/
 
 build-for-lambda: bin clean vendor fmt
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/main cmd/aws-lambda/main.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w -X main.GitCommit=${git-commit}" -o bin/main cmd/aws-lambda/main.go
 	cp credentials.json bin/
 
 bin:
