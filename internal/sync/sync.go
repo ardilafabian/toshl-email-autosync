@@ -55,9 +55,39 @@ func getEarliestDateFromTxs(txs []*types.TransactionInfo) time.Time {
 	return earliestDate
 }
 
+const notificationFormat = `Synced transactions:
+	%d successful
+	%d failures
+	%d failed to parse`
+
+type txsStatus struct {
+	SuccessfulTxs []*types.TransactionInfo
+	FailedTxs     []*types.TransactionInfo
+	ParseFailures int64
+}
+
 func Run(ctx context.Context, auth types.Auth) error {
+	var status txsStatus
+
 	log := logger.GetLogger()
 	defer log.Sync()
+
+	defer func() {
+		log.Infow("Synced transactions",
+			"successful", len(status.SuccessfulTxs),
+			"failed", len(status.FailedTxs),
+			"failed_to_parse", status.ParseFailures,
+		)
+
+		shouldNotify := status.ParseFailures > 0
+		shouldNotify = shouldNotify || len(status.FailedTxs) > 0
+		shouldNotify = shouldNotify || len(status.SuccessfulTxs) > 0
+
+		if shouldNotify && auth.TwilioAccountSid != "" {
+			msg := fmt.Sprintf(notificationFormat, len(status.SuccessfulTxs), len(status.FailedTxs), status.ParseFailures)
+			SendNotifications(auth, msg)
+		}
+	}()
 
 	banks := bank.GetBanks()
 
@@ -72,11 +102,12 @@ func Run(ctx context.Context, auth types.Auth) error {
 		return err
 	}
 
-	transactions, failures := ExtractTransactionInfoFromMessages(msgs)
+	var transactions []*types.TransactionInfo
+	transactions, status.ParseFailures = ExtractTransactionInfoFromMessages(msgs)
 
-	if failures > 0 {
+	if status.ParseFailures > 0 {
 		log.Infow("Had failures extracting information from messages",
-			"failures", failures,
+			"failures", status.ParseFailures,
 		)
 	}
 
@@ -110,20 +141,11 @@ func Run(ctx context.Context, auth types.Auth) error {
 		log.Debugf("%s: %s", name, account.Name)
 	}
 
-	successfulTxs, failedTxs := CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
+	status.SuccessfulTxs, status.FailedTxs = CreateEntries(toshlClient, transactions, mappableAccounts, internalCategoryId)
 
-	ArchiveEmailsOfSuccessfulTransactions(mailClient, successfulTxs)
+	ArchiveEmailsOfSuccessfulTransactions(mailClient, status.SuccessfulTxs)
 
-	log.Infow("Synced transactions",
-		"successful", len(successfulTxs),
-		"failed", len(failedTxs),
-	)
-	if len(successfulTxs) > 0 && auth.TwilioAccountSid != "" {
-		msg := fmt.Sprintf("Synced transactions: %d successful- %d failed", len(successfulTxs), len(failedTxs))
-		SendNotifications(auth, msg)
-	}
-
-	if err := UpdateLastProcessedDate(failedTxs); err != nil {
+	if err := UpdateLastProcessedDate(status.FailedTxs); err != nil {
 		return fmt.Errorf("failed to update last processed date: %s", err)
 	}
 
