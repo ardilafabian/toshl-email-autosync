@@ -55,10 +55,7 @@ func getEarliestDateFromTxs(txs []*types.TransactionInfo) time.Time {
 	return earliestDate
 }
 
-const notificationFormat = `Synced transactions:
-	%d successful
-	%d failures
-	%d failed to parse`
+const notificationFormat = `Transactions: s:%d / f:%d / parse:%d`
 
 type txsStatus struct {
 	SuccessfulTxs []*types.TransactionInfo

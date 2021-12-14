@@ -1,9 +1,10 @@
 package types
 
 import (
+	"time"
+
 	"github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap/types"
 	"github.com/Philanthropists/toshl-go"
-	"time"
 )
 
 type Auth struct {
@@ -15,6 +16,8 @@ type Auth struct {
 	TwilioAuthToken  string `json:"twilio-auth-token"`
 	TwilioFromNumber string `json:"twilio-from-number"`
 	TwilioToNumber   string `json:"twilio-to-number"`
+	RapidApiKey      string `json:"rapidapi-key"`
+	RapidApiHost     string `json:"rapidapi-host"`
 }
 
 type Currency struct {

@@ -2,24 +2,40 @@ package rapidapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/Philanthropists/toshl-email-autosync/internal/market/rapidapi/types"
 )
 
 const StockSummaryURI = "https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-summary?region=US&symbol=%s"
 
-type RapidAPI struct {
+type StockMarket interface {
+	GetMarketValue(stock types.Stock) (float64, error)
+}
+
+func GetMarketClient(api, host string) (StockMarket, error) {
+	if api == "" || host == "" {
+		return nil, errors.New("invalid api or host")
+	}
+
+	impl := &rapidApiImpl{}
+	impl.Uri = StockSummaryURI
+	impl.Header.Key = api
+	impl.Header.Host = host
+
+	return impl, nil
+}
+
+type rapidApiImpl struct {
 	Uri    string
 	Header struct {
 		Key  string `json:"key"`
 		Host string `json:"host"`
 	}
 }
-
-const (
-	USDCOP = "COP%3DX"
-)
 
 type stockValue struct {
 	Price struct {
@@ -29,7 +45,7 @@ type stockValue struct {
 	} `json:"price"`
 }
 
-func (api *RapidAPI) GetCredentialsFromFile(filename string) error {
+func (api *rapidApiImpl) GetCredentialsFromFile(filename string) error {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return fmt.Errorf("unable to read API keys from file: %w", err)
@@ -43,7 +59,7 @@ func (api *RapidAPI) GetCredentialsFromFile(filename string) error {
 	return nil
 }
 
-func (api *RapidAPI) GetCurrentValue(symbol string) (float64, error) {
+func (api *rapidApiImpl) GetMarketValue(symbol types.Stock) (float64, error) {
 	const HeaderKey = "x-rapidapi-key"
 	const HeaderHost = "x-rapidapi-host"
 

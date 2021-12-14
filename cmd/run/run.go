@@ -5,15 +5,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
-	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
-	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"io"
 	"log"
 	"os"
+	concurrency "sync"
+
+	"github.com/Philanthropists/toshl-email-autosync/internal/market"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 
 	"github.com/Philanthropists/toshl-email-autosync/internal/market/investment-fund/bancolombia"
-	"github.com/Philanthropists/toshl-email-autosync/internal/market/rapidapi"
 
 	toshlclient "github.com/Philanthropists/toshl-go"
 )
@@ -21,21 +23,6 @@ import (
 const credentialsFile = "credentials.json"
 
 var GitCommit string
-
-func GetStock() {
-	api := rapidapi.RapidAPI{}
-	err := api.GetCredentialsFromFile("rapidapi-keys.json")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	value, err := api.GetCurrentValue(rapidapi.USDCOP)
-	if err != nil {
-		log.Println("Error getting stock: ", err)
-	}
-
-	fmt.Printf("Current USD/COP value: %f\n", value)
-}
 
 func GetInvestmentFunds() {
 	const fundName = "Renta Sostenible Global"
@@ -124,5 +111,28 @@ func main() {
 		panic(err)
 	}
 
-	sync.Run(context.Background(), auth)
+	var wg concurrency.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		errThis := sync.Run(context.Background(), auth)
+		if errThis != nil {
+			err = errThis
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		errThis := market.Run(context.Background(), auth)
+		if errThis != nil {
+			err = errThis
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	if err != nil {
+		panic(err)
+	}
 }
