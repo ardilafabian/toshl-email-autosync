@@ -10,9 +10,9 @@ build: bin vendor fmt
 
 .PHONY: build-for-lambda
 build-for-lambda: bin clean vendor fmt
-	GOOS=linux\
-	GOARCH=amd64\
-	CGO_ENABLED=0\
+	GOOS=linux \
+	GOARCH=amd64 \
+	CGO_ENABLED=0 \
 		 go build ${flags} -o bin/main cmd/aws-lambda/main.go
 	cp credentials.json bin/
 
