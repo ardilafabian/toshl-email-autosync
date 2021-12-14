@@ -2,15 +2,16 @@ package imap
 
 import (
 	"errors"
+	"io"
+	"io/ioutil"
+	"sync"
+	"time"
+
 	"github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap/types"
 	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 	_imap "github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
-	"io"
-	"io/ioutil"
-	"sync"
-	"time"
 )
 
 type MailClient interface {

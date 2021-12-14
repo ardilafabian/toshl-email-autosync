@@ -2,13 +2,14 @@ package sync
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
 	_toshl "github.com/Philanthropists/toshl-go"
-	"regexp"
-	"strings"
 )
 
 func GetMappableAccounts(accounts []*toshl.Account) map[string]*toshl.Account {

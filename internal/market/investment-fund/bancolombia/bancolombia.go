@@ -3,12 +3,13 @@ package bancolombia
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/text/currency"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/text/currency"
 )
 
 const (

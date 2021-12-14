@@ -3,6 +3,7 @@ package twilio
 import (
 	"encoding/json"
 	"errors"
+
 	_twilio "github.com/twilio/twilio-go"
 	openapi "github.com/twilio/twilio-go/rest/api/v2010"
 )
@@ -51,5 +52,6 @@ func (c ClientImpl) SendSms(from, to, msg string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(response), nil
 }

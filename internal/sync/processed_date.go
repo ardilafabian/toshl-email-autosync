@@ -2,11 +2,12 @@ package sync
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/Philanthropists/toshl-email-autosync/internal/dynamodb"
 	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 	synctypes "github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"time"
 )
 
 func GetLastProcessedDate() time.Time {
@@ -16,42 +17,47 @@ func GetLastProcessedDate() time.Time {
 	defaultDate := time.Now().Add(-365 * 24 * time.Hour) // from 1 year in the past by default
 
 	var selectedDate time.Time
+	defer func() {
+		logger.Infow("selected date",
+			"date", selectedDate.Format(time.RFC822Z))
+	}()
 
-	client, err := dynamodb.NewClient("us-east-1")
+	const region = "us-east-1"
+	client, err := dynamodb.NewClient(region)
 	if err != nil {
 		logger.Fatalw("error creating dynamodb client",
 			"error", err)
 	}
 
 	res, err := client.Scan(tableName)
-	if err != nil {
+	if err != nil || len(res) != 1 {
 		selectedDate = defaultDate
 		logger.Errorw("connection to dynamodb as unsuccessful",
 			"error", err)
-	} else if len(res) == 1 {
-		resValue := res[0]
-		value, ok := resValue[dateField]
-		if ok {
-			switch j := value.(type) {
-			case string:
-				selectedDate, err = time.Parse(time.RFC822Z, j)
-				if err != nil {
-					selectedDate = defaultDate
-				}
-			}
-		} else {
-			selectedDate = defaultDate
-			logger.Warnw("field is not defined in dynamodb item",
-				"field", dateField)
-		}
-	} else {
+	}
+
+	if len(res) != 1 {
 		selectedDate = defaultDate
 		logger.Warnw("something is wrong, the number of items retrieved was not 1",
 			"response", res)
 	}
 
-	logger.Infow("selected date",
-		"date", selectedDate.Format(time.RFC822Z))
+	resValue := res[0]
+	value, ok := resValue[dateField]
+	if !ok {
+		selectedDate = defaultDate
+		logger.Warnw("field is not defined in dynamodb item",
+			"field", dateField)
+	}
+
+	switch j := value.(type) {
+	case string:
+		var err error
+		selectedDate, err = time.Parse(time.RFC822Z, j)
+		if err != nil {
+			selectedDate = defaultDate
+		}
+	}
 
 	return selectedDate
 }

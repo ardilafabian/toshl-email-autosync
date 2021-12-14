@@ -3,12 +3,13 @@ package bancolombia
 import (
 	"errors"
 	"fmt"
-	imaptypes "github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap/types"
-	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
-	synctypes "github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"regexp"
 	"strconv"
 	"strings"
+
+	imaptypes "github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap/types"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
+	synctypes "github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 )
 
 type Bancolombia struct {
@@ -72,7 +73,6 @@ func (b Bancolombia) ExtractTransactionInfoFromMessage(msg imaptypes.Message) (*
 	if !common.ContainsAllRequiredFields(result) {
 		return nil, fmt.Errorf("message does not contain all required fields - result [%+v]", result)
 	}
-
 	value, err := getValueFromText(result["value"])
 	if err != nil {
 		return nil, err
