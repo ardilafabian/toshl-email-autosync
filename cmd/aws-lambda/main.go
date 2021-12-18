@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"os"
+	concurrency "sync"
+
+	"github.com/Philanthropists/toshl-email-autosync/internal/market"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/aws/aws-lambda-go/lambda"
-	"io"
-	"os"
 )
 
 const credentialsFile = "credentials.json"
@@ -45,7 +48,28 @@ func HandleRequest(ctx context.Context) error {
 		return err
 	}
 
-	return sync.Run(ctx, auth)
+	var wg concurrency.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		errThis := sync.Run(ctx, auth)
+		if errThis != nil {
+			err = errThis
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		errThis := market.Run(ctx, auth)
+		if errThis != nil {
+			err = errThis
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	return err
 }
 
 func main() {
