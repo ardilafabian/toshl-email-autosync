@@ -3,7 +3,11 @@ package sync
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/Philanthropists/toshl-email-autosync/internal/bank"
 	"github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap"
@@ -63,6 +67,37 @@ type txsStatus struct {
 	ParseFailures int64
 }
 
+func notificationString(success, failures []*types.TransactionInfo, parseFails int64) string {
+	msg := fmt.Sprintf(notificationFormat, len(success), len(failures), parseFails)
+
+	p := message.NewPrinter(language.English)
+
+	const txsFormat = `%s || $ %.2f %s|| %s`
+	const dateFormat = "2006-01-02"
+	var status []string
+	status = append(status, msg)
+
+	for _, txs := range success {
+		status = append(status,
+			p.Sprintf(txsFormat,
+				txs.Date.Format(dateFormat),
+				*txs.Value.Rate,
+				txs.Place,
+				"SUCCESS"))
+	}
+
+	for _, txs := range failures {
+		status = append(status,
+			p.Sprintf(txsFormat,
+				txs.Date.Format(dateFormat),
+				*txs.Value.Rate,
+				txs.Place,
+				"FAILED"))
+	}
+
+	return strings.Join(status, "\n")
+}
+
 func Run(ctx context.Context, auth types.Auth) error {
 	var status txsStatus
 
@@ -81,7 +116,7 @@ func Run(ctx context.Context, auth types.Auth) error {
 		shouldNotify = shouldNotify || len(status.SuccessfulTxs) > 0
 
 		if shouldNotify && auth.TwilioAccountSid != "" {
-			msg := fmt.Sprintf(notificationFormat, len(status.SuccessfulTxs), len(status.FailedTxs), status.ParseFailures)
+			msg := notificationString(status.SuccessfulTxs, status.FailedTxs, status.ParseFailures)
 			SendNotifications(auth, msg)
 		}
 	}()
