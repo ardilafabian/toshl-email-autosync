@@ -39,7 +39,12 @@ func GetLastProcessedDate() time.Time {
 	if len(res) != 1 {
 		selectedDate = defaultDate
 		logger.Warnw("something is wrong, the number of items retrieved was not 1",
-			"response", res)
+			"response", res,
+			"len", len(res))
+	}
+
+	if len(res) == 0 {
+		return defaultDate
 	}
 
 	resValue := res[0]
