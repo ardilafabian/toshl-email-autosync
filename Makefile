@@ -16,6 +16,10 @@ build-for-lambda: bin clean vendor fmt
 		 go build ${flags} -o bin/main cmd/aws-lambda/main.go
 	cp credentials.json bin/
 
+.PHONY: build-docker
+build-docker: clean fmt
+	docker build --build-arg COMMIT=${git-commit} -t toshl-sync .
+
 bin:
 	mkdir -p bin
 

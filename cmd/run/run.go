@@ -11,11 +11,10 @@ import (
 	concurrency "sync"
 
 	"github.com/Philanthropists/toshl-email-autosync/internal/market"
+	"github.com/Philanthropists/toshl-email-autosync/internal/market/investment-fund/bancolombia"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
-
-	"github.com/Philanthropists/toshl-email-autosync/internal/market/investment-fund/bancolombia"
 
 	toshlclient "github.com/Philanthropists/toshl-go"
 )
