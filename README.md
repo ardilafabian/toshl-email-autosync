@@ -6,4 +6,4 @@ into Toshl. This is useful when banks do not expose any useful API.
 ## TODOs
 
 - [ ] Let messages streams be taken from different email inboxes
-- [ ] Create Dockerfile to build image for AWS ECR
+- [x] Create Dockerfile to build image for AWS ECR

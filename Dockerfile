@@ -17,9 +17,19 @@ RUN GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=${CGO_ENABLED} \
 		 -gcflags=-G=3 \
 		 -o ${LOC}/main cmd/aws-lambda/main.go
 
-FROM public.ecr.aws/lambda/provided:al2
+FROM alpine:3.15.0
 
-COPY --from=builder /usr/local/bin/main /main
+WORKDIR /
+
+# Needed for getting America/Bogota Location
+RUN apk add --no-cache tzdata
+
+ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie /usr/bin/aws-lambda-rie
+RUN chmod 755 /usr/bin/aws-lambda-rie
+COPY entry.sh .
+RUN chmod 755 entry.sh
+
 COPY credentials.json .
+COPY --from=builder /usr/local/bin/main ./main
 
-ENTRYPOINT [ "/main" ]
+ENTRYPOINT [ "/entry.sh", "/main" ]
