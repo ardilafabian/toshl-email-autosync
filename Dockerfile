@@ -25,9 +25,8 @@ WORKDIR /
 RUN apk add --no-cache tzdata
 
 ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie /usr/bin/aws-lambda-rie
-RUN chmod 755 /usr/bin/aws-lambda-rie
 COPY entry.sh .
-RUN chmod 755 entry.sh
+RUN chmod 755 /usr/bin/aws-lambda-rie && chmod 755 entry.sh
 
 COPY credentials.json .
 COPY --from=builder /usr/local/bin/main ./main
