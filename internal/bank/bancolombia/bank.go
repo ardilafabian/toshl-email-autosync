@@ -47,7 +47,7 @@ func (b Bancolombia) FilterMessage(msg imaptypes.Message) bool {
 var regexpMap = map[string]*regexp.Regexp{
 	"pago":          regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) a (?P<place>.+) desde (?:cta|T\.CRED) \*(?P<account>\d{4})\.`),
 	"compra":        regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) en (?P<place>.+)\..+T\.(?:Cred|Deb) \*(?P<account>\d{4})\.`),
-	"transferencia": regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) desde cta \*(?P<account>\d{4}).+(?P<place>\d{16})\.`),
+	"transferencia": regexp.MustCompile(`Bancolombia le informa (?P<type>\w+) por \$(?P<value>[0-9,\.]+) desde cta \*(?P<account>\d{4}).+(?P<place>\d{10,16})\.`),
 }
 
 func (b Bancolombia) ExtractTransactionInfoFromMessage(msg imaptypes.Message) (*synctypes.TransactionInfo, error) {
