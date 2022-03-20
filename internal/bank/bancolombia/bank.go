@@ -89,27 +89,61 @@ func (b Bancolombia) ExtractTransactionInfoFromMessage(msg imaptypes.Message) (*
 }
 
 // This would be way easier if Bancolombia had a consistent use of commas and dots inside the currency
-var currencyRegexp = regexp.MustCompile(`^(?P<integer>[0-9\.,]+)(?P<decimal>\d{2})$`)
+var currencyRegexp = regexp.MustCompile(`^(?P<integer>[0-9\.,]+)[\.,](?P<decimal>\d{2})$`)
+var currencyRegexpWithoutDecimal = regexp.MustCompile(`^(?P<integer>[0-9\.,]+)`)
 
-func getValueFromText(s string) (synctypes.Currency, error) {
+func getValueFromTextWithDecimal(s string) (string, error) {
 	if !currencyRegexp.MatchString(s) {
-		return synctypes.Currency{}, fmt.Errorf("string [%s] does not match regex [%s]", s, currencyRegexp.String())
+		return "", fmt.Errorf("string [%s] does not match regex [%s]", s, currencyRegexp.String())
 	}
 
 	res := common.ExtractFieldsStringWithRegexp(s, currencyRegexp)
 	integer, ok := res["integer"]
 	if !ok {
-		return synctypes.Currency{}, fmt.Errorf("string [%s] should have an integer part", s)
+		return "", fmt.Errorf("string [%s] should have an integer part", s)
 	}
 
 	decimal, ok := res["decimal"]
 	if !ok {
-		return synctypes.Currency{}, fmt.Errorf("string [%s] should have a decimal part", s)
+		return "", fmt.Errorf("string [%s] should have a decimal part", s)
 	}
 
 	integer = strings.ReplaceAll(integer, ",", "")
 	integer = strings.ReplaceAll(integer, ".", "")
 	valueStr := integer + "." + decimal
+
+	return valueStr, nil
+}
+
+func getValueFromTextWithoutDecimal(s string) (string, error) {
+	if !currencyRegexpWithoutDecimal.MatchString(s) {
+		return "", fmt.Errorf("string [%s] does not match regex without decimal [%s]", s, currencyRegexp.String())
+	}
+
+	res := common.ExtractFieldsStringWithRegexp(s, currencyRegexpWithoutDecimal)
+	integer, ok := res["integer"]
+	if !ok {
+		return "", fmt.Errorf("string [%s] should have an integer part", s)
+	}
+
+	integer = strings.ReplaceAll(integer, ",", "")
+	integer = strings.ReplaceAll(integer, ".", "")
+	decimal := "0"
+	valueStr := integer + "." + decimal
+
+	return valueStr, nil
+}
+
+func getValueFromText(s string) (synctypes.Currency, error) {
+	valueStr, err := getValueFromTextWithDecimal(s)
+	if err != nil {
+		valueStr, err = getValueFromTextWithoutDecimal(s)
+	}
+
+	if err != nil {
+		return synctypes.Currency{}, err
+	}
+
 	value, err := strconv.ParseFloat(valueStr, 64)
 
 	var currency synctypes.Currency
