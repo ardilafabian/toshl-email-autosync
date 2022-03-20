@@ -1,9 +1,12 @@
 package common
 
 import (
-	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 	"regexp"
+
+	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
 )
+
+var version string
 
 func ExtractFieldsStringWithRegexp(s string, r *regexp.Regexp) map[string]string {
 	match := r.FindStringSubmatch(s)
@@ -39,4 +42,9 @@ func PrintVersion(commit string) {
 	defer log.Sync()
 
 	log.Infof("Commit version: %s", commit)
+	version = commit
+}
+
+func GetVersion() string {
+	return version
 }

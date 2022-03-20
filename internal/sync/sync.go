@@ -12,6 +12,7 @@ import (
 	"github.com/Philanthropists/toshl-email-autosync/internal/bank"
 	"github.com/Philanthropists/toshl-email-autosync/internal/datasource/imap"
 	"github.com/Philanthropists/toshl-email-autosync/internal/logger"
+	"github.com/Philanthropists/toshl-email-autosync/internal/sync/common"
 	"github.com/Philanthropists/toshl-email-autosync/internal/sync/types"
 	"github.com/Philanthropists/toshl-email-autosync/internal/toshl"
 )
@@ -59,7 +60,7 @@ func getEarliestDateFromTxs(txs []*types.TransactionInfo) time.Time {
 	return earliestDate
 }
 
-const notificationFormat = `Transactions: s:%d / f:%d / parse:%d`
+const notificationFormat = `%s Transactions: s:%d / f:%d / parse:%d`
 
 type txsStatus struct {
 	SuccessfulTxs []*types.TransactionInfo
@@ -68,7 +69,8 @@ type txsStatus struct {
 }
 
 func notificationString(success, failures []*types.TransactionInfo, parseFails int64) string {
-	msg := fmt.Sprintf(notificationFormat, len(success), len(failures), parseFails)
+	versionInfo := common.GetVersion()[:4]
+	msg := fmt.Sprintf(notificationFormat, versionInfo, len(success), len(failures), parseFails)
 
 	p := message.NewPrinter(language.English)
 
