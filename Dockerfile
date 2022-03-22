@@ -31,4 +31,5 @@ RUN chmod 755 /usr/bin/aws-lambda-rie && chmod 755 entry.sh
 COPY credentials.json .
 COPY --from=builder /usr/local/bin/main ./main
 
-ENTRYPOINT [ "/entry.sh", "/main" ]
+ENTRYPOINT [ "/entry.sh"]
+CMD ["/main"]
