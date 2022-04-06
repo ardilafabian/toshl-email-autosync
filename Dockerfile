@@ -22,7 +22,7 @@ FROM alpine:3.15.0
 WORKDIR /
 
 # Needed for getting America/Bogota Location
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache tzdata=2022a-r0
 
 COPY credentials.json .
 COPY --from=builder /usr/local/bin/main ./main

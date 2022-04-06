@@ -17,7 +17,7 @@ build-for-lambda: bin clean vendor fmt
 	cp credentials.json bin/
 
 .PHONY: build-docker
-build-docker: clean fmt
+build-docker: docker-lint clean fmt
 	docker buildx build \
 		--platform linux/amd64 \
 		--build-arg COMMIT=${git-commit} \
@@ -25,6 +25,10 @@ build-docker: clean fmt
 
 bin:
 	mkdir -p bin
+
+.PHONY: docker-lint
+docker-lint:
+	docker run --rm -i ghcr.io/hadolint/hadolint < Dockerfile
 
 .PHONY: fmt
 fmt: staticcheck
