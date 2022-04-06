@@ -18,7 +18,10 @@ build-for-lambda: bin clean vendor fmt
 
 .PHONY: build-docker
 build-docker: clean fmt
-	docker build --build-arg COMMIT=${git-commit} -t toshl-sync .
+	docker buildx build \
+		--platform linux/amd64 \
+		--build-arg COMMIT=${git-commit} \
+		-t toshl-sync .
 
 bin:
 	mkdir -p bin
