@@ -32,7 +32,7 @@ func GetEmailFromInbox(mailClient imap.MailClient, banks []synctypes.BankDelegat
 }
 
 func ArchiveEmailsOfSuccessfulTransactions(mailClient imap.MailClient, successfulTransactions []*synctypes.TransactionInfo) {
-	const archivedMailbox = "[Gmail]/All Mail"
+	const archivedMailbox = "Bancolombia"
 	mailboxes, err := mailClient.GetMailBoxes()
 	if err == nil {
 		found := false
